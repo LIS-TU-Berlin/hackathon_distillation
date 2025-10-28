@@ -37,6 +37,18 @@ class Robot:
         # get target pose from model
         pass
 
+    def view(self):
+        rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+        
+        D = hack.DataPlayer(rgb, depth)
+        while True:
+            key = self.bot.sync(self.S.C, .1)
+            if key==ord('q'):
+                break
+
+            rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+            D.update(rgb, depth)
+
     def replay(self):
         """
         Replay h5 data
@@ -44,8 +56,11 @@ class Robot:
         
         # Load h5 data
         reader = hack.H5Reader(self.args.data)
+        rgb, depth = self.bot.getImageAndDepth('cameraWrist')
         
-        for episode in reader.fil.keys():
+        D = hack.DataPlayer(rgb, depth)
+
+        for i, episode in enumerate(reader.fil.keys()):
 
             print(f"Testing episode {episode}")
             data_ee = reader.read(f"{episode}/ee_pos")
@@ -54,6 +69,9 @@ class Robot:
             self.bot.wait(self.S.C, forKeyPressed=False, forTimeToEnd=True)
 
             for p in data_ee:
+
+                rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+                D.update(rgb, depth)
 
                 self.bot.sync(self.S.C, .1)
 
@@ -72,6 +90,14 @@ class Robot:
                 
                 time.sleep(args.sleep)
 
+
+                key = self.bot.sync(self.S.C, .1)
+                if key==ord('q'):
+                    break
+
+            if i == self.args.ep - 1:
+                break  # only run 2 episodes for demo
+
     def run(self):
         """
         Run on robot
@@ -84,6 +110,7 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser()
     p.add_argument("--T_episode", type=int, default=10, help="Time to move (with sine motion profile)")
+    p.add_argument("--ep", type=int, default=1, help="Number of episodes to replay")
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
     p.add_argument("--data", type=str, default="", help="Path to h5 file")

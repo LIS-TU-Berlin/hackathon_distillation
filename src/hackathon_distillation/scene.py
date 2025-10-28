@@ -35,6 +35,8 @@ class DataPlayer:
         self.fig.add_subplot(1,2,2)
         self.im2 = plt.imshow(depth)
         plt.pause(.01)
+    
+    # def __del__(self):
 
     def update(self, rgb, depth):
         self.im1.set_data(rgb)
