@@ -18,5 +18,5 @@ def test_generate_data():
 
 if __name__ == "__main__":
     # test_random_resets()
-    # test_in_BotOp()
-    test_generate_data()
+    test_in_BotOp()
+    # test_generate_data()
