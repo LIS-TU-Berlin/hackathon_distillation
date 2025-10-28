@@ -121,7 +121,7 @@ class Policy(nn.Module):
             # stack n latest observations from the queue
             batch = {k: th.stack(list(self._queues[k]), dim=1) for k in batch if k in self._queues}
             actions = self.policy.generate_actions(batch)
-            actions = self.policy.unnormalize_outputs({"action": actions})["action"]
+            #actions = self.policy.unnormalize_outputs({"action": actions})["action"]
 
             self._queues["action"].extend(actions.transpose(0, 1))
 

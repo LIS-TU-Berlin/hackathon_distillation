@@ -3,9 +3,9 @@ import torch as th
 import torch.nn.functional as F
 from omegaconf import DictConfig
 
-from coarse2fine_flow.policy.ModelWrapperABC import ModelWrapper
-from coarse2fine_flow.policy.diffusion.ddpm_wrapper import DdpmModel
-from coarse2fine_flow.policy.utils.normalize import Normalize, Unnormalize
+from hackathon_distillation.policy.ModelWrapperABC import ModelWrapper
+from hackathon_distillation.policy.diffusion.ddpm_wrapper import DdpmModel
+from hackathon_distillation.policy.utils.normalize import Normalize, Unnormalize
 
 
 class FlowMatchingWrapper(ModelWrapper):

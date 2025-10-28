@@ -39,7 +39,8 @@ def create_stats_buffers(
 
         shape = tuple(shapes[key])
 
-        if "image" in key:
+        # change image shapes; TODO: check this again
+        if "img" in key:
             # sanity checks
             assert len(shape) == 3, f"number of dimensions of {key} != 3 ({shape=}"
             c, h, w = shape
@@ -129,7 +130,6 @@ class Normalize(nn.Module):
         for key, buffer in stats_buffers.items():
             setattr(self, "buffer_" + key.replace(".", "_"), buffer)
 
-    # TODO(rcadene): should we remove torch.no_grad?
     @torch.no_grad()
     def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         batch = dict(batch)  # shallow copy avoids mutating the input batch

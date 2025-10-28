@@ -1,0 +1,105 @@
+image_transforms:
+  enable: false
+  max_num_transforms: 3
+  random_order: false
+  brightness:
+    weight: 1
+    min_max:
+    - 0.8
+    - 1.2
+  contrast:
+    weight: 1
+    min_max:
+    - 0.8
+    - 1.2
+  saturation:
+    weight: 1
+    min_max:
+    - 0.5
+    - 1.5
+  hue:
+    weight: 1
+    min_max:
+    - -0.05
+    - 0.05
+  sharpness:
+    weight: 1
+    min_max:
+    - 0.8
+    - 1.2
+video: false
+data_path: demos/pusht
+data_name: lerobot/pusht
+log_dir: logs
+ckpt_save_path: ckpts
+misc_save_path: misc
+is_debug: true
+epochs: 400
+batch_size: 128
+grad_clip_norm: 10.0
+seed: 123
+port: 12338
+devices:
+- 0
+- 1
+strategy: ddp
+val_every: 10
+save_every: 20
+save_max: 3
+n_obs_steps: 2
+horizon: 16
+n_action_steps: 8
+model_type: src.hackathon_distillation.policy.ddpm_wrapper.DdpmWrapper
+num_inference_steps: 10
+do_mask_loss_for_padding: false
+drop_n_last_frames: true
+prediction_type: epsilon
+network:
+  dropout: 0.0
+  down_dims:
+  - 512
+  - 1024
+  - 2048
+  input_shapes:
+    observation.image:
+    - 3
+    - 96
+    - 96
+    observation.state:
+    - 2
+  input_normalization_modes:
+    observation.image: mean_std
+    observation.state: min_max
+  output_shapes:
+    action:
+    - 2
+  output_normalization_modes:
+    action: min_max
+  pretrained_backbone_weights: null
+  use_group_norm: true
+  n_groups: 8
+  vision_backbone: resnet18
+  crop_shape:
+  - 84
+  - 84
+  crop_is_random: true
+  spatial_softmax_num_keypoints: 32
+  network_cls: coarse2fine_flow.networks.unet.ConditionalUnet1d
+  kernel_size: 5
+  diffusion_step_embed_dim: 128
+  use_film_scale_modulation: true
+noise_scheduler:
+  _target_: diffusers.schedulers.scheduling_ddpm.DDPMScheduler
+  num_train_timesteps: 10
+  beta_schedule: squaredcos_cap_v2
+  beta_start: 0.0001
+  beta_end: 0.02
+  prediction_type: epsilon
+  clip_sample: true
+  clip_sample_range: 1.0
+optimizer:
+  _target_: coarse2fine_flow.networks.optim.soap.SOAP
+  kwargs:
+    lr: 0.0005
+    eps: 1.0e-08
+    weight_decay: 1.0e-06

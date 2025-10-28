@@ -16,13 +16,13 @@ REPO_PATH = Path(os.environ["REPO_PATH"])
 config_path = str(REPO_PATH / "config")
 
 
-@hydra.main(config_path=config_path, config_name="fm_c2f", version_base=None)
+@hydra.main(config_path=config_path, config_name="test", version_base=None)
 def train_cli(cfg: DictConfig) -> None:
     os.environ['CUDA_VISIBLE_DEVICES'] = ",".join([str(d) for d in cfg.devices])
 
     print(cfg)
     n_devices = th.cuda.device_count()
-    run_name = _get_run_name(cfg.log_dir, cfg.get("run_name")) if not cfg.is_debug else "test"
+    run_name = _get_run_name(cfg.log_dir, cfg.get("run_name")) if not cfg.is_debug else "test"  # TODO: fix perhaps
     mp.spawn(
         _train_mp,
         args=(

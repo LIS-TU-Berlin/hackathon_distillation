@@ -12,6 +12,7 @@ class MLP(nn.Module):
         activation: Type[nn.Module] = nn.ReLU,
         dropout: float = 0.0,
         use_layer_norm: bool = True,
+        **kwargs
     ):
         super(MLP, self).__init__()
         if hidden_dims is None:

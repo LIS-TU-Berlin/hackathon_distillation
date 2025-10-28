@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
+
 import functools
 import os
 import warnings
@@ -25,6 +26,7 @@ from tqdm.auto import tqdm
 from hackathon_distillation.policy.ModelWrapperABC import TrainStrategy, ModelWrapper
 from hackathon_distillation.policy.logger import LoggerCollection, TensorboardLogger
 from hackathon_distillation.utils.utils_cornelius import set_global_seed
+from hackathon_distillation.policy.synth_dataset import _DPSyntheticDataset
 
 ROOT = pathlib.Path(os.environ["REPO_PATH"])
 CODEBASE_VERSION = os.environ.get("CODEBASE_VERSION")
@@ -297,18 +299,32 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
 
     # Environment setup -- specify precisino etc for
     warnings.filterwarnings("ignore", category=UserWarning)
-    th.set_float32_matmul_precision("high")
+    #th.set_float32_matmul_precision("high")
 
     setup(pid, n_devices, str(cfg.port))
     th.cuda.set_device(pid)
 
-    # Create dataset -- TODO
-    data_augmentations = img_transforms_wrapper(cfg)
+    # Create dataset -- TODO: find proper split and collation etc
+    # data_augmentations = img_transforms_wrapper(cfg)
     if cfg.horizon % 2 != 0:
         print("Horizon is not a multiple of 2! Are you sure you use th proper config?")
-    train_episodes, val_episodes = train_test_split(list(range(len(ds_meta.episodes))), train_size=.8, random_state=cfg.seed)
-    train_data = # TODO
-    val_data = # TODO
+    # train_episodes, val_episodes = train_test_split(list(range(len(ds_meta.episodes))), train_size=.8, random_state=cfg.seed)
+    # diffusion-policy style synthetic dataset with flat obs keys
+    train_data = _DPSyntheticDataset(
+        horizon=cfg.horizon,
+        n_obs_steps=getattr(cfg, "n_obs_steps", None),
+        n_latency_steps=getattr(cfg, "n_latency_steps", 0),
+        n_episodes=8,
+        episode_len=50,
+        val_ratio=0.2,
+        seed=cfg.seed,
+        which_split="train",
+    )
+    val_data = train_data.get_validation_dataset()
+
+    ds_meta = type("Meta", (), {})()
+    ds_meta.episodes = list(range(train_data.n_episodes))
+    ds_meta.stats = train_data.stats
 
     # TODO: check with the samplers
     train_sampler = DistributedSampler(
