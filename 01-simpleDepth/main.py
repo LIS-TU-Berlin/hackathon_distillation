@@ -15,7 +15,7 @@ def mini_demo():
     S.plot_rgb_and_depth(rgb, depth)
 
 def store_h5():
-    h5 = hack.H5Writer('data.h5')
+    h5 = hack.H5Writer('data_test01.h5')
 
     S = hack.Scene()
 
@@ -34,13 +34,13 @@ def store_h5():
         h5.write(f'dat{i:04}/depth', depth, dtype='float32')
 
 def print_file_info():
-    h5 = hack.H5Reader('data.h5')
+    h5 = hack.H5Reader('data_test01.h5')
     print('=== this is the same as calling ry_h5Info from command line ===')
     h5.print_info()
     print('===')
 
 def howto_load_from_file():
-    h5 = hack.H5Reader('data.h5')
+    h5 = hack.H5Reader('data_test01.h5')
     manifest = h5.read_dict('manifest')
     print('manifest:', manifest)
 
@@ -49,7 +49,8 @@ def howto_load_from_file():
     for i in range(N):
         rgb = h5.read(f'dat{i:04}/rgb')
         depth = h5.read(f'dat{i:04}/depth')
-        S.plot_rgb_and_depth(rgb, depth)
+        D = hack.DataPlayer(rgb, depth)
+        plt.pause(.2)
 
 if __name__ == "__main__":
     store_h5()

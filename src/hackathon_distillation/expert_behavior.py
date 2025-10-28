@@ -12,6 +12,7 @@ class ExpertBehavior:
     def __init__(self):
         self.S = hack.Scene()
         self.q0 = self.S.C.getJointState()
+        self.pos0 = self.S.ball.getPosition()
 
         self.reset()
 
@@ -23,7 +24,7 @@ class ExpertBehavior:
         num_ctrl_points = 10 #reduce to make smoother
 
         points = .2 * np.random.randn(num_ctrl_points, 3)
-        points += self.S.ball.getPosition()
+        points += self.pos0
         times = np.linspace(0., self.T_episode, num_ctrl_points)
         self.spline = ry.BSpline()
         self.spline.set(2, points, times)
@@ -101,7 +102,6 @@ class ExpertBehavior:
             q_target, ret = self.IK(action)
             if ret.feasible:
                 sim.setSplineRef(q_target, [.1], False)
-        self.episode_count += 1
         print('=== done')
 
         if h5 is not None:
@@ -109,5 +109,7 @@ class ExpertBehavior:
             h5.write(tag+'ee_action', data_ee_action)
             h5.write(tag+'ee_pos', data_ee_pos)
             h5.write(tag+'q', data_q)
-            h5.write(tag+'rgb', data_rgb)
-            h5.write(tag+'depth', data_depth)
+            h5.write(tag+'rgb', data_rgb, dtype='uint8')
+            h5.write(tag+'depth', data_depth, dtype='float32')
+
+        self.episode_count += 1

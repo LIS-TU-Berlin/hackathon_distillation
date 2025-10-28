@@ -1,5 +1,7 @@
 import robotic as ry
 import matplotlib.pyplot as plt
+from matplotlib import animation
+from .scene import *
 
 class Scene:
     def __init__(self):
@@ -19,10 +21,20 @@ class Scene:
         # pcl = ry.depthImage2PointCloud(depth, self.camview.getFxycxy())
         return rgb, depth
 
-    def plot_rgb_and_depth(self, rgb, depth):
-        fig = plt.figure()
-        fig.add_subplot(1,2,1)
-        plt.imshow(rgb)
-        fig.add_subplot(1,2,2)
-        plt.imshow(depth)
-        plt.show()
+class DataPlayer:
+
+    def __init__(self, rgb, depth):
+        self.rgb = rgb
+        self.depth = depth
+        self.fig = plt.figure()
+        self.fig.add_subplot(1,2,1)
+        self.im1 = plt.imshow(rgb)
+        self.fig.add_subplot(1,2,2)
+        self.im2 = plt.imshow(depth)
+        plt.pause(.01)
+
+    def update(self, rgb, depth):
+        self.im1.set_data(rgb)
+        self.im2.set_data(depth)
+        plt.pause(.01)
+
