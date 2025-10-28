@@ -62,7 +62,7 @@ class ExpertBehavior:
 
     def run_with_Sim(self, h5=None, verbose=1):
 
-        print('=== run and episode')
+        print(f'=== run and episode {self.episode_count}')
         sim = ry.Simulation(self.S.C, engine=ry.SimulationEngine.physx, verbose=0)
         sim.resetSplineRef()
         sim.selectSensor('cameraWrist')
@@ -101,6 +101,7 @@ class ExpertBehavior:
             q_target, ret = self.IK(action)
             if ret.feasible:
                 sim.setSplineRef(q_target, [.1], False)
+        self.episode_count += 1
         print('=== done')
 
         if h5 is not None:
