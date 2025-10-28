@@ -65,10 +65,12 @@ class Robot:
 
                 q_target, ret = self.IK(target_pos)
                 if ret.feasible:
-                    self.bot.moveTo(q_target, timeCost=5., overwrite=True)
+                    self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
                 else:
                     print("Not feasible!")
                     return
+                
+                time.sleep(args.sleep)
 
     def run(self):
         """
@@ -78,11 +80,12 @@ class Robot:
         while self.bot.get_t() < self.args.T_episode:
             pass
 
-            
 if __name__ == "__main__":
 
     p = argparse.ArgumentParser()
     p.add_argument("--T_episode", type=int, default=10, help="Time to move (with sine motion profile)")
+    p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
+    p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
     p.add_argument("--data", type=str, default="", help="Path to h5 file")
     p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot 
     args = p.parse_args()
