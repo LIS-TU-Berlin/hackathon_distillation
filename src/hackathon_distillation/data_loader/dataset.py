@@ -65,7 +65,6 @@ class BallImageDataset(BaseImageDataset):
         self.pad_before = pad_before
         self.pad_after = pad_after
         # TODO: remove this after testing 
-        self.create_stats()
 
     def get_validation_dataset(self):
         val_set = copy.copy(self)
@@ -78,32 +77,6 @@ class BallImageDataset(BaseImageDataset):
             )
         val_set.train_mask = ~self.train_mask
         return val_set
-    
-    def create_stats(self):
-        C, H, W = 1, 360, 640
-
-        # dataset "stats" for normalizer compatibility
-        self.stats = {
-            "obs.img": {
-                "mean": torch.ones((C, H, W), dtype=torch.float32) * 0.5,
-                "std": torch.ones((C, H, W), dtype=torch.float32) * 0.1,
-                "min": torch.zeros((C, H, W), dtype=torch.float32),
-                "max": torch.ones((C, H, W), dtype=torch.float32),
-            },
-            "obs.state": {
-                "mean": torch.zeros((3,), dtype=torch.float32),
-                "std": torch.ones((3,), dtype=torch.float32) * 0.1,
-                "min": torch.zeros((3,), dtype=torch.float32),
-                "max": torch.ones((3,), dtype=torch.float32),
-            },
-            "action": {
-                "mean": torch.zeros((3,), dtype=torch.float32),
-                "std": torch.ones((3,), dtype=torch.float32) * 0.1,
-                "min": torch.zeros((3,), dtype=torch.float32),
-                "max": torch.ones((3,), dtype=torch.float32),
-            },
-        }
-
 
     # def get_normalizer(self, mode='limits', **kwargs):
     #     data = {
@@ -122,9 +95,9 @@ class BallImageDataset(BaseImageDataset):
         rgb = sample['rgb']  # T, 360, 640, 3
         rgb_transposed = np.moveaxis(rgb, -1,1)  # T, 3, 360, 640
         data = {
-            'obs.img': sample['depth'][:self.obs_horizon], # T, 360, 640
+            # 'obs.img': sample['depth'][:self.obs_horizon], # T, 360, 640
             'obs.state': sample['ee_pos'][:self.obs_horizon], # T, 3
-            'obs.rgb': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
+            'obs.img': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
             'action': sample['ee_action'] # T, 3
         }
         return data
