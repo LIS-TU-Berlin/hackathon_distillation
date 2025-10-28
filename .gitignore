@@ -12,3 +12,5 @@ outputs/
 # Virtual environments
 .venv
 .idea/
+
+devel/*.pt
