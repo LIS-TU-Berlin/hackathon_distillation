@@ -22,6 +22,7 @@ class Robot:
         komo.addObjective([], ry.FS.position, ['ref'], ry.OT.sos, [1e2], target_pos)
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
+        komo.addObjective([], ry.FS.negDistance, ["l_panda_coll3", "wall"], ry.OT.ineq)
 
         sol = ry.NLP_Solver(komo.nlp(), verbose=0)
         sol.setOptions(stopInners=10, damping=1e-4) ##very low cost

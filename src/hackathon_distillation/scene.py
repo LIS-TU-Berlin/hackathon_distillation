@@ -10,6 +10,9 @@ class Scene:
         self.ball = self.C.addFrame('ball')
         self.ball.setShape(ry.ST.sphere, [.03]) .setColor([.2, .7, .8]) .setPosition([-.05, .2, 1.])
 
+        self.wall = self.C.addFrame('wall')
+        self.wall.setShape(ry.ST.ssBox, size=[2.0, .05, 2.0, 0.005]) .setPosition([0.0, -0.5, 1.5])
+
         self.ref = self.C.addFrame('ref', 'l_gripper')
         self.ref.setRelativePosition([0,0,-.2]) .setShape(ry.ST.marker, [.2])
 
