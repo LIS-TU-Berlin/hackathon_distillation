@@ -80,12 +80,12 @@ class Policy(nn.Module):
     def reset(self):
         """Clear observation and action queues. Should be called on `env.reset()`"""
         self._queues = {
-            "action": deque(maxlen=self.config.n_action_steps),
+            "action": deque(maxlen=self.config.action_horizon),
         }
         if len(self.expected_image_keys) > 0:
-            self._queues["observation.image"] = deque(maxlen=self.config.n_obs_steps)
+            self._queues["observation.image"] = deque(maxlen=self.config.obs_horizon)
         if self.use_env_state:
-            self._queues["observation.state"] = deque(maxlen=self.config.n_obs_steps)
+            self._queues["observation.state"] = deque(maxlen=self.config.obs_horizon)
         self.policy.prior_sample = None
 
     @th.no_grad()

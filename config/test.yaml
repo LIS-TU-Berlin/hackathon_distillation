@@ -27,9 +27,9 @@ save_max: 3
 #n_action_steps: 8  # execution horizon
 #n_obs_steps: 1    # Use 0 for unconditional generation -- not used during training
 #horizon: 128  # prediction horizon -- what the actual model predicts
-n_obs_steps: 2
-horizon: 16
-n_action_steps: 8
+obs_horizon: 2
+pred_horizon: 16
+action_horizon: 8
 
 # Policy options
 model_type: src.hackathon_distillation.policy.ddpm_wrapper.DdpmWrapper  #FlowMatchingWrapper
@@ -43,15 +43,15 @@ network:
   dropout: 0.
   down_dims: [ 512, 1024, 2048 ]
   input_shapes: {
-    "obs.img": [3, 64, 64],  # comment out for no images
-    "obs.state": [ 4 ],
+    "obs.img": [1, 360, 640],  # comment out for no images
+    "obs.state": [ 3 ],
   }
   input_normalization_modes: {
     "obs.img": "mean_std",
     "obs.state": "min_max",
   }
   output_shapes: {
-    "action": [ 2 ],  # Note we need feature dim first! Find out why and how this works; feature dim is ndof
+    "action": [ 3 ],  # Note we need feature dim first! Find out why and how this works; feature dim is ndof
   }
   output_normalization_modes: {
     "action": "min_max",

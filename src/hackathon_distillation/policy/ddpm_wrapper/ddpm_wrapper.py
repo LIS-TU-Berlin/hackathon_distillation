@@ -91,7 +91,7 @@ class DdpmWrapper(ModelWrapper):
         # Input validation.
         assert set(batch).issuperset({"obs.state", "action"})
         horizon = batch["action"].shape[1]
-        assert horizon == self.config.horizon, f"MISMATCH: horizon = {horizon}, config.horizon = {self.config.horizon}"
+        assert horizon == self.config.pred_horizon, f"MISMATCH: horizon = {horizon}, config.pred_horizon = {self.config.pred_horizon}"
 
         batch = self.normalize_inputs(batch)
         batch = self.normalize_targets(batch)
@@ -145,7 +145,7 @@ class DdpmWrapper(ModelWrapper):
         sample = th.randn(
             size=(
                 batch_size,
-                self.config.horizon,
+                self.config.pred_horizon,
                 self.config.network.output_shapes["action"][0],
             ),
             device=device,
@@ -199,7 +199,7 @@ class DdpmModel(nn.Module):
 
         # Compute global_cond_dim
         global_cond_dim = 0
-        if cfg.n_obs_steps > 0:
+        if cfg.obs_horizon > 0:
             assert "obs.state" in cfg.network.input_shapes
             global_cond_dim += cfg.network.input_shapes["obs.state"][0]
 
@@ -212,7 +212,7 @@ class DdpmModel(nn.Module):
 
         # Create the UNet model
         self.network = hydra.utils.get_class(cfg.network.network_cls)(
-            cfg, global_cond_dim=self.global_cond_dim * cfg.n_obs_steps
+            cfg, global_cond_dim=self.global_cond_dim * cfg.obs_horizon
         )
 
     def forward(

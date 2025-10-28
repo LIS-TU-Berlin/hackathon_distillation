@@ -51,8 +51,8 @@ class FlowMatchingWrapper(ModelWrapper):
         assert set(batch).issuperset({"observation.state", "action"})
         horizon = batch["action"].shape[1]
         n_obs_steps = batch["observation.state"].shape[1]
-        assert horizon == self.config.horizon, f"MISMATCH: horizon = {horizon}, config.horizon = {self.config.horizon}"
-        assert n_obs_steps == self.config.n_obs_steps, f"MISMATCH: n_obs_steps = {n_obs_steps}, config.n_obs = {self.config.n_obs_steps}"
+        assert horizon == self.config.pred_horizon, f"MISMATCH: horizon = {horizon}, config.pred_horizon = {self.config.pred_horizon}"
+        assert n_obs_steps == self.config.obs_horizon, f"MISMATCH: n_obs_steps = {n_obs_steps}, config.n_obs = {self.config.obs_horizon}"
 
         batch = self.normalize_inputs(batch)
         batch = self.normalize_targets(batch)
@@ -106,7 +106,7 @@ class FlowMatchingWrapper(ModelWrapper):
         sample = th.randn(
             size=(
                 batch_size,
-                self.config.horizon,
+                self.config.pred_horizon,
                 self.config.network.output_shapes["action"][0],
             ),
             device=device,

@@ -27,6 +27,7 @@ from hackathon_distillation.policy.ModelWrapperABC import TrainStrategy, ModelWr
 from hackathon_distillation.policy.logger import LoggerCollection, TensorboardLogger
 from hackathon_distillation.utils.utils_cornelius import set_global_seed
 from hackathon_distillation.policy.synth_dataset import _DPSyntheticDataset
+from hackathon_distillation.data_loader.dataset import BallImageDataset
 
 ROOT = pathlib.Path(os.environ["REPO_PATH"])
 CODEBASE_VERSION = os.environ.get("CODEBASE_VERSION")
@@ -306,12 +307,12 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
 
     # Create dataset -- TODO: find proper split and collation etc
     # data_augmentations = img_transforms_wrapper(cfg)
-    if cfg.horizon % 2 != 0:
+    if cfg.pred_horizon % 2 != 0:
         print("Horizon is not a multiple of 2! Are you sure you use th proper config?")
     # train_episodes, val_episodes = train_test_split(list(range(len(ds_meta.episodes))), train_size=.8, random_state=cfg.seed)
     # diffusion-policy style synthetic dataset with flat obs keys
     train_data = _DPSyntheticDataset(
-        horizon=cfg.horizon,
+        horizon=cfg.pred_horizon,
         n_obs_steps=getattr(cfg, "n_obs_steps", None),
         n_latency_steps=getattr(cfg, "n_latency_steps", 0),
         n_episodes=8,
@@ -320,11 +321,22 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         seed=cfg.seed,
         which_split="train",
     )
+
+    data_path = '/home/data/hackathon/data.zarr'
+
+    # create dataset from file
+    train_data = BallImageDataset(
+        data_path=data_path,
+        horizon=cfg.pred_horizon,
+        pad_before=cfg.obs_horizon-1,
+        pad_after=cfg.action_horizon-1, 
+        val_ratio=0.2,
+    )
     val_data = train_data.get_validation_dataset()
 
-    ds_meta = type("Meta", (), {})()
-    ds_meta.episodes = list(range(train_data.n_episodes))
-    ds_meta.stats = train_data.stats
+    # ds_meta = type("Meta", (), {})()
+    # ds_meta.episodes = list(range(train_data.n_episodes))
+    # ds_meta.stats = train_data.stats
 
     # TODO: check with the samplers
     train_sampler = DistributedSampler(
@@ -360,7 +372,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
     )
 
     # Get model & trainer
-    wrapper = hydra.utils.get_class(cfg.model_type)(cfg, dataset_stats=ds_meta.stats)
+    wrapper = hydra.utils.get_class(cfg.model_type)(cfg, dataset_stats=train_data.stats)
     trainer = Trainer(
         pid=pid,
         world_size=n_devices,

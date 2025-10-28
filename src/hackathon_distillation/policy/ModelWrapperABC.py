@@ -23,7 +23,7 @@ class ModelWrapper(ABC):
     def __init__(self, cfg: DictConfig, dataset_stats: dict[str, th.Tensor] | None = None,) -> None:
         self.config = cfg
         self.dataset_stats = dataset_stats
-        self.n_action_steps = cfg.n_action_steps
+        self.n_action_steps = cfg.action_horizon
 
     def configure_optimizers(self, **kwargs) -> tuple[list[th.optim.Optimizer], list[th.optim.lr_scheduler._LRScheduler]]:
         """Return list of optimizers and list of schedulers."""
@@ -98,8 +98,8 @@ class ModelWrapper(ABC):
         }
         """
         batch_size, n_obs_steps = batch["observation.state"].shape[:2]
-        assert n_obs_steps == self.config.n_obs_steps, (
-            f"Expected {self.config.n_obs_steps} observation steps, but got {n_obs_steps}."
+        assert n_obs_steps == self.config.obs_horizon, (
+            f"Expected {self.config.obs_horizon} observation steps, but got {n_obs_steps}."
         )
 
         # Run sampling
@@ -107,7 +107,7 @@ class ModelWrapper(ABC):
 
         # Extract `n_action_steps` steps worth of actions (from the current observation).
         start = n_obs_steps - 1
-        end = start + self.config.n_action_steps
+        end = start + self.config.action_horizon
         actions = actions[:, start:end]
 
         return actions
