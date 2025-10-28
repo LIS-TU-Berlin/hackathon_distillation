@@ -7,6 +7,7 @@ import torch as th
 import hydra
 import torch.multiprocessing as mp
 from omegaconf import DictConfig
+from rich.pretty import pprint
 
 from hackathon_distillation.policy.trainer import _train_mp
 from hackathon_distillation.policy.utils.logger import _get_run_name
@@ -20,7 +21,7 @@ config_path = str(REPO_PATH / "config")
 def train_cli(cfg: DictConfig) -> None:
     os.environ['CUDA_VISIBLE_DEVICES'] = ",".join([str(d) for d in cfg.devices])
 
-    print(cfg)
+    pprint(cfg)
     n_devices = th.cuda.device_count()
     run_name = _get_run_name(cfg.log_dir, cfg.get("run_name")) if not cfg.is_debug else "test"  # TODO: fix perhaps
     mp.spawn(

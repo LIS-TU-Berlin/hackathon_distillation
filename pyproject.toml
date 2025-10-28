@@ -15,6 +15,7 @@ dependencies = [
     "numba>=0.62.1",
     "numcodecs>=0.13.1",
     "python-dotenv>=1.2.1",
+    "rich>=14.2.0",
     "robotic==0.3.4.dev4",
     "schedulefree>=1.4.1",
     "scikit-learn>=1.7.2",
