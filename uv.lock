@@ -1,0 +1,24 @@
+version = 1
+revision = 2
+requires-python = ">=3.10"
+
+[[package]]
+name = "hackathon-distillation"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "robotic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "robotic", specifier = "==0.3.4.dev3" }]
+
+[[package]]
+name = "robotic"
+version = "0.3.4.dev3"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1b/cd/d57b2c270a2646be6ed6a0c690bf6c7f327f0a23c61a4ee52aed82f349c9/robotic-0.3.4.dev3-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:66f9edc9354b675906c040bc188968443d26d9e9e5c011accc9560056211b3c9", size = 20566506, upload-time = "2025-10-23T16:14:31.575Z" },
+    { url = "https://files.pythonhosted.org/packages/35/0b/7965054ba539b734f3dc155a0fc860baa6f12ad551070afac654a9780a29/robotic-0.3.4.dev3-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:37a3cf41052d30d9123049d851829ba28df0912fc3335e692f6c5701ff0ad2a5", size = 20567715, upload-time = "2025-10-23T16:14:36.451Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/e2/99e3deb0d3e3d4992d17fb7d81ab23c919481bbd170866936a3a5933b47f/robotic-0.3.4.dev3-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:49bc68be63079cf0e787ddcc1bf8d46d50c51c08dbdbcca242ec4d8ca91e9183", size = 20564099, upload-time = "2025-10-23T16:14:40.013Z" },
+]

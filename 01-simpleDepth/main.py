@@ -23,7 +23,7 @@ def store_h5():
     N = 10
     manifest = { 'info': 'This file contains just rendered rgb and depth images',
                  'num_data': N,
-                 'fxycxy': list(S.camview.getFxycxy())q
+                 'fxycxy': list(S.camview.getFxycxy())
                 }
     h5.write_dict('manifest', manifest)
 
