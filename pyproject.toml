@@ -7,7 +7,9 @@ authors = [
     { name = "Sayantan Auddy", email = "auddy@tu-berlin.de" }
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "robotic==0.3.4.dev3"
+]
 
 [project.scripts]
 hackathon-distillation = "hackathon_distillation:main"
