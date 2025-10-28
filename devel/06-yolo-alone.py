@@ -7,6 +7,8 @@ import numpy as np
 # This works, YOLO detects objects in depth images saved from the robot camera
 # Running together with botop does not work, botop waits foreoever for the camera image
 
+# Try creating mask with opencv blob detection
+
 class Robot:
     def __init__(self, real=False):
         self.S = hack.Scene()
