@@ -39,6 +39,9 @@ class BallImageDataset(BaseImageDataset):
             ):
         
         super().__init__()
+        self.obs_horizon = pad_before + 1
+        self.action_horizon = pad_after + 1
+
         self.replay_buffer = ReplayBuffer.copy_from_path(
             data_path, keys=['depth', 'ee_pos', 'ee_action', 'rgb'])
         val_mask = get_val_mask(
@@ -116,9 +119,12 @@ class BallImageDataset(BaseImageDataset):
         return len(self.sampler)
 
     def _sample_to_data(self, sample):
+        rgb = sample['rgb']  # T, 360, 640, 3
+        rgb_transposed = np.moveaxis(rgb, -1,1)  # T, 3, 360, 640
         data = {
-            'obs.img': sample['depth'], # T, 360, 640
-            'obs.state': sample['ee_pos'], # T, 3
+            'obs.img': sample['depth'][:self.obs_horizon], # T, 360, 640
+            'obs.state': sample['ee_pos'][:self.obs_horizon], # T, 3
+            'obs.rgb': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
             'action': sample['ee_action'] # T, 3
         }
         return data
@@ -129,13 +135,39 @@ class BallImageDataset(BaseImageDataset):
         torch_data = dict_apply(data, torch.from_numpy)
         return torch_data
 
+if __name__ == '__main__':
+    data_path = '/home/data/hackathon/data.zarr'
 
-def test():
-    data_path = '/home/data/hackathon/data.h5'
-    dataset = BallImageDataset(data_path, horizon=1)
+    # parameters
+    pred_horizon = 12
+    obs_horizon = 2
+    action_horizon = 5
 
-    # from matplotlib import pyplot as plt
-    # normalizer = dataset.get_normalizer()
-    # nactions = normalizer['ee_action'].normalize(dataset.replay_buffer['ee_action'])
-    # diff = np.diff(nactions, axis=0)
-    # dists = np.linalg.norm(np.diff(nactions, axis=0), axis=-1)
+    # create dataset from file
+    dataset = BallImageDataset(
+        data_path=data_path,
+        horizon=pred_horizon,
+        pad_before=obs_horizon-1,
+        pad_after=action_horizon-1
+    )
+    # # save training data statistics (min, max) for each dim
+    # stats = dataset.stats
+
+    # create dataloader
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=64,
+        num_workers=4,
+        shuffle=True,
+        # accelerate cpu-gpu transfer
+        pin_memory=False,
+        # don't kill worker process afte each epoch
+        persistent_workers=True
+    )
+
+    # # visualize data in batch
+    batch = next(iter(dataloader))
+    print("obs['depth'].shape:", batch['obs.img'].shape)
+    print("obs['rgb'].shape:", batch['obs.rgb'].shape)
+    print("obs['ee_pos'].shape:", batch['obs.state'].shape)
+    print("batch['ee_action'].shape", batch['action'].shape)

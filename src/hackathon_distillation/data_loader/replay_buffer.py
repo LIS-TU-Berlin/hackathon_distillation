@@ -11,7 +11,7 @@ from functools import cached_property
 
 def h5_to_replaybuffer(
     h5_reader,                      # your H5Reader
-    keys=('depth','ee_pos','ee_action'),
+    keys=('depth','ee_pos','ee_action', 'rgb'),  # keys to read from H5
     zarr_out_path=None,             # e.g. '/path/to/dataset.zarr' (if None -> in-memory numpy)
     compressor='default',           # 'default' (lz4), 'disk' (zstd+bitshuffle), or a numcodecs codec
     chunks=None,                    # dict like {'depth': (chunk_T, ...)}
@@ -678,7 +678,7 @@ if __name__ == "__main__":
     # to build a zarr dataset on disk:
     rb = h5_to_replaybuffer(
         h5_reader=h5,
-        keys=('depth','ee_pos','ee_action'),
+        keys=('depth','ee_pos','ee_action', 'rgb'),
         zarr_out_path="/home/data/hackathon/data.zarr",
         compressor='disk',  # better for on-disk storage
     )
