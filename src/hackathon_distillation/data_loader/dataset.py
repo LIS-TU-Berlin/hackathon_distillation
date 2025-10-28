@@ -40,7 +40,7 @@ class BallImageDataset(BaseImageDataset):
         
         super().__init__()
         self.replay_buffer = ReplayBuffer.copy_from_path(
-            data_path, keys=['depth', 'ee_pos', 'ee_action'])
+            data_path, keys=['depth', 'ee_pos', 'ee_action', 'rgb'])
         val_mask = get_val_mask(
             n_episodes=self.replay_buffer.n_episodes, 
             val_ratio=val_ratio,
@@ -82,22 +82,22 @@ class BallImageDataset(BaseImageDataset):
         # dataset "stats" for normalizer compatibility
         self.stats = {
             "obs.img": {
-                "mean": torch.ones((C, H, W)) * 0.5,
-                "std": torch.ones((C, H, W)) * 0.1,
-                "min": torch.zeros((C, H, W)),
-                "max": torch.ones((C, H, W)),
+                "mean": torch.ones((C, H, W), dtype=torch.float32) * 0.5,
+                "std": torch.ones((C, H, W), dtype=torch.float32) * 0.1,
+                "min": torch.zeros((C, H, W), dtype=torch.float32),
+                "max": torch.ones((C, H, W), dtype=torch.float32),
             },
             "obs.state": {
-                "mean": torch.zeros((3,)),
-                "std": torch.ones((3,)) * 0.1,
-                "min": torch.zeros((3,)),
-                "max": torch.ones((3,)),
+                "mean": torch.zeros((3,), dtype=torch.float32),
+                "std": torch.ones((3,), dtype=torch.float32) * 0.1,
+                "min": torch.zeros((3,), dtype=torch.float32),
+                "max": torch.ones((3,), dtype=torch.float32),
             },
             "action": {
-                "mean": torch.zeros((3,)),
-                "std": torch.ones((3,)) * 0.1,
-                "min": torch.zeros((3,)),
-                "max": torch.ones((3,)),
+                "mean": torch.zeros((3,), dtype=torch.float32),
+                "std": torch.ones((3,), dtype=torch.float32) * 0.1,
+                "min": torch.zeros((3,), dtype=torch.float32),
+                "max": torch.ones((3,), dtype=torch.float32),
             },
         }
 
