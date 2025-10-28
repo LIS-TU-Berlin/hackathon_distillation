@@ -1,6 +1,8 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+*.h5
+z.log.global
 build/
 dist/
 wheels/
