@@ -2,7 +2,7 @@
 __pycache__/
 *.py[oc]
 *.h5
-z.log.global
+z.*
 build/
 dist/
 wheels/
