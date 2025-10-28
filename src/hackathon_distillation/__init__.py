@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from hackathon-distillation!")
+from .h5_helper import *
