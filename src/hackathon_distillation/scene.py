@@ -8,7 +8,7 @@ class Scene:
         self.C = ry.Config()
         self.C.addFile('$RAI_PATH/scenarios/pandaSingle.g')
         self.ball = self.C.addFrame('ball')
-        self.ball.setShape(ry.ST.sphere, [.03]) .setColor([.2, .7, .8]) .setPosition([-.05, .2, 1.])
+        self.ball.setShape(ry.ST.sphere, [.0315]) .setColor([.2, .5, .6]) .setPosition([-.05, .2, 1.])
 
         self.wall = self.C.addFrame('wall')
         self.wall.setShape(ry.ST.ssBox, size=[2.0, .05, 2.0, 0.005]) .setPosition([0.0, -0.4, 1.5])
@@ -35,6 +35,8 @@ class DataPlayer:
         self.fig.add_subplot(1,2,2)
         self.im2 = plt.imshow(depth)
         plt.pause(.01)
+    
+    # def __del__(self):
 
     def update(self, rgb, depth):
         self.im1.set_data(rgb)
