@@ -17,7 +17,7 @@ batch_size: 128   # this is per device if ddp is used
 grad_clip_norm: 10.
 seed: 123
 port: 12338
-devices: [0]
+devices: [4]
 strategy: cuda  # [cuda, ddp, fsdp]; cuda is single gpu, ddp is data multigpu, fsdp is model & data different gpus
 val_every: 10
 save_every: 20
@@ -43,8 +43,8 @@ network:
   dropout: 0.
   down_dims: [ 512, 1024, 2048 ]
   input_shapes: {
-    "obs.img": [3, 96, 96],  # comment out for no images
-    "obs.state": [ 2 ],
+    "obs.img": [3, 64, 64],  # comment out for no images
+    "obs.state": [ 4 ],
   }
   input_normalization_modes: {
     "obs.img": "mean_std",

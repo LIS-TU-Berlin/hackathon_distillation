@@ -45,6 +45,17 @@ class DdpmWrapper(ModelWrapper):
     ):
         super().__init__(cfg, dataset_stats)
 
+        # Normalization
+        self.normalize_inputs = Normalize(
+            cfg.network.input_shapes, cfg.network.input_normalization_modes, dataset_stats
+        )
+        self.normalize_targets = Normalize(
+            cfg.network.output_shapes, cfg.network.output_normalization_modes, dataset_stats
+        )
+        self.unnormalize_outputs = Unnormalize(
+            cfg.network.output_shapes, cfg.network.output_normalization_modes, dataset_stats
+        )
+
         # Setup DDPM config
         self.noise_scheduler = hydra.utils.instantiate(
             cfg.noise_scheduler,
@@ -63,7 +74,7 @@ class DdpmWrapper(ModelWrapper):
             self.num_inference_steps = cfg.num_inference_steps
 
         # Instantiate the model
-        self.model = DdpmModel(cfg, dataset_stats)
+        self.model = DdpmModel(cfg)
 
     def compute_loss(self, model: th.nn.Module, batch: dict[str, th.Tensor]) -> dict[str, th.Tensor]:
         """
@@ -82,8 +93,8 @@ class DdpmWrapper(ModelWrapper):
         horizon = batch["action"].shape[1]
         assert horizon == self.config.horizon, f"MISMATCH: horizon = {horizon}, config.horizon = {self.config.horizon}"
 
-        batch = self.model.normalize_inputs(batch)
-        batch = self.model.normalize_targets(batch)
+        batch = self.normalize_inputs(batch)
+        batch = self.normalize_targets(batch)
 
         # Sample noise that we'll add to the latents
         trajectory = batch["action"].to(model.device)
@@ -172,30 +183,19 @@ class DdpmWrapper(ModelWrapper):
         ]
 
         optimizer_cls = hydra.utils.get_class(self.config.optimizer._target_)
-        optimizer = ScheduleFreeWrapper(optimizer_cls(optim_groups, **self.config.optimizer.kwargs))
+        optimizer = optimizer_cls(optim_groups, **self.config.optimizer.kwargs)
         optimizer.train_mode = True
 
         return [optimizer], []
 
 
 class DdpmModel(nn.Module):
-    def __init__(self, cfg: DictConfig, dataset_stats: dict):
+    def __init__(self, cfg: DictConfig):
         super().__init__()
         self.cfg = cfg
         self.rgb_encoder = None
 
         self._use_images = False #any(k.startswith("obs.img") for k in cfg.network.input_shapes)
-
-        # Normalization
-        self.normalize_inputs = Normalize(
-            cfg.network.input_shapes, cfg.network.input_normalization_modes, dataset_stats
-        )
-        self.normalize_targets = Normalize(
-            cfg.network.output_shapes, cfg.network.output_normalization_modes, dataset_stats
-        )
-        self.unnormalize_outputs = Unnormalize(
-            cfg.network.output_shapes, cfg.network.output_normalization_modes, dataset_stats
-        )
 
         # Compute global_cond_dim
         global_cond_dim = 0
