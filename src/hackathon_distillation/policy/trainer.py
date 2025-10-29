@@ -5,6 +5,7 @@ import functools
 import os
 import warnings
 import pathlib
+import json
 
 import hydra.utils
 import torch as th
@@ -26,8 +27,7 @@ from tqdm.auto import tqdm
 from hackathon_distillation.data_loader.compute_stats import compute_dataset_stats_welford
 from hackathon_distillation.policy.ModelWrapperABC import TrainStrategy, ModelWrapper
 from hackathon_distillation.policy.logger import LoggerCollection, TensorboardLogger
-from hackathon_distillation.utils.utils_cornelius import set_global_seed
-from hackathon_distillation.policy.synth_dataset import _DPSyntheticDataset
+from hackathon_distillation.utils.utils_cornelius import set_global_seed, to_list, to_tensor, lists_to_tensors
 from hackathon_distillation.data_loader.dataset import BallImageDataset
 
 ROOT = pathlib.Path(os.environ["REPO_PATH"])
@@ -162,7 +162,8 @@ class Trainer:
         assert self._is_setup, "You must call trainer.setup() before training!"
 
         for epoch in range(1, epochs + 1):
-            train_loader.sampler.set_epoch(epoch)
+            # if self.strategy != TrainStrategy.cuda:
+            #     train_loader.sampler.set_epoch(epoch)
             self._train(train_loader, epoch)
 
             # Validation
@@ -324,9 +325,19 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         val_ratio=0.2,
     )
     val_data = train_data.get_validation_dataset()
-    data_stats = compute_dataset_stats_welford(train_data)
+    stats_file = DATA_PATH / "data_stats.pt"
+    if stats_file.exists():
+        with stats_file.open("r") as f:
+            data_stats = th.load(stats_file)
+    else:
+        data_stats = compute_dataset_stats_welford(train_data)
+        with stats_file.open("w") as f:
+            data_stats = compute_dataset_stats_welford(train_data)
+            th.save(data_stats, stats_file)
+    print("Dataset creation finished.")
 
     # TODO: check with the samplers
+    #if cfg.strategy in ("ddp", "fsdp"):
     train_sampler = DistributedSampler(
         train_data,
         rank=pid,
@@ -340,7 +351,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         num_workers=4,
         persistent_workers=True,    # must be True!
         pin_memory=True,            # must be True!
-        drop_last=False,
+        drop_last=True,
         shuffle=False
     )
 
@@ -358,6 +369,19 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         persistent_workers=True,
         pin_memory=True,
     )
+    # else:
+    #     # no ddp
+    #     train_loader = DataLoader(
+    #         train_data, batch_size=cfg.batch_size, shuffle=True,
+    #         num_workers= max(4, os.cpu_count() // 2),
+    #         prefetch_factor=4, persistent_workers=True,
+    #         pin_memory=True, drop_last=True
+    #     )
+    #     val_loader = DataLoader(
+    #         val_data, batch_size=cfg.batch_size, shuffle=False,
+    #         num_workers= max(4, os.cpu_count() // 2),
+    #         persistent_workers=True, pin_memory=True
+    #     )
 
     # Get model & trainer
     wrapper = hydra.utils.get_class(cfg.model_type)(cfg, dataset_stats=data_stats)

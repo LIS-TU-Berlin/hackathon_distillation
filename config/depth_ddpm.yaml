@@ -6,16 +6,16 @@ defaults:
 log_dir: "logs"
 ckpt_save_path: "ckpts"
 misc_save_path: "misc"
-run_name: "ddpm_unet_test"
+is_debug: true
+#run_name: "ddpm_unet_test"
 
 # Training hyperparams
-is_debug: false
 epochs: 200
 batch_size: 64   # this is per device if ddp is used
 grad_clip_norm: 10.
 seed: 123
-port: 12338
-devices: [3]
+port: 12335
+devices: [1]
 strategy: cuda  # [cuda, ddp, fsdp]; cuda is single gpu, ddp is data multigpu, fsdp is model & data different gpus
 val_every: 10
 save_every: 20
