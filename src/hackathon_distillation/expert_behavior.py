@@ -23,7 +23,7 @@ class ExpertBehavior:
 
         num_ctrl_points = 5 #reduce to make smoother
 
-        points = .2 * np.random.randn(num_ctrl_points, 3)
+        points = np.array([.2, .2, .1]) * np.random.randn(num_ctrl_points, 3)
         points += self.pos0
         times = np.linspace(0., self.T_episode, num_ctrl_points)
         self.spline = ry.BSpline()
