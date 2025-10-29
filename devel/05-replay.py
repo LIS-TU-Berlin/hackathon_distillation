@@ -81,6 +81,9 @@ class Robot:
                 target_pos = p.copy()
                 target_pos = np.clip(target_pos, a_min=[-10., .1, .6], a_max=[10., 10., 10.])
 
+                self.S.ball.setPosition(target_pos)
+                self.bot.sync(self.S.C, .1)
+
                 q_target, ret = self.IK(target_pos)
                 if ret.feasible:
                     self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
@@ -97,6 +100,28 @@ class Robot:
 
             if i == self.args.ep - 1:
                 break  # only run 2 episodes for demo
+
+    def view_img(self):
+        """
+        View h5 data - loop through and display images
+        """
+        
+        # Load h5 data
+        reader = hack.H5Reader(self.args.data)
+        rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+        
+        D = hack.DataPlayer(rgb, depth)
+
+        for i, episode in enumerate(reader.fil.keys()):
+
+            print(f"Testing episode {episode}")
+            rgb = reader.read(f"{episode}/rgb")
+            depth = reader.read(f"{episode}/depth")
+
+            for i in range(rgb.shape[0]):
+                D.update(rgb[i], depth[i])
+                time.sleep(0.1)
+
 
     def run(self):
         """
@@ -119,7 +144,8 @@ if __name__ == "__main__":
 
     print(args)
 
-    Robot(args).replay()
+    #Robot(args).replay()
+    Robot(args).view_img()
 
 
 
