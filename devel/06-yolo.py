@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO, SAM, FastSAM
 from typing import List, Tuple, Any
+from einops import rearrange
 
 import hackathon_distillation as hack
 
@@ -44,12 +45,12 @@ class Robot:
 
 class Masker:
 
-    def __init__(self, detect_model_pth:str="yolo11m.pt", segment_model_pth:str="FastSAM-s.pt", bot:ry.BotOp=None):
+    def __init__(self, detect_model_pth:str="yolo11m.pt", segment_model_pth:str="yolo11m-seg.pt", bot:ry.BotOp=None):
         self.bot = bot
         self.detect_model = YOLO(detect_model_pth)
         self.segment_model = FastSAM(segment_model_pth)
 
-    def detect_yolo(self, img:np.ndarray):
+    def detect(self, img:np.ndarray):
         """
         
         """
@@ -59,7 +60,7 @@ class Masker:
         for r in results:
             r.show() 
 
-    def segment_sam(self, img:np.ndarray):
+    def segment(self, img:np.ndarray):
         """
         
         """
@@ -68,8 +69,13 @@ class Masker:
             r.show() 
 
             for m in r.masks:
-                
-                m.shape
+                d:np.ndarray = m.data.detach().cpu().numpy()
+                print(type(d), d.shape, d.dtype)
+                d = d[0]*255
+                print(np.max(d), np.min(d))
+                cv2.imshow("depth", d)
+                cv2.waitKey(0)
+
 
 
 if __name__ == "__main__":
@@ -82,5 +88,5 @@ if __name__ == "__main__":
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     #m.detect_yolo(rgb)
-    m.segment_sam(rgb)
+    m.segment(rgb)
 
