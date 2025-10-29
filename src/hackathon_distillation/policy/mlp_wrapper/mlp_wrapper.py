@@ -23,8 +23,6 @@ def prepare_input(
 
     if use_images:
         imgs = batch["obs.img"][:, :n_obs_steps]
-        if imgs.ndim < 6:
-            imgs = imgs.unsqueeze(2)  # add extra dimension; hack for datasets where the single camera is implicit
         img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...")
         img_features = rgb_encoder(img_inputs.to(device))
         img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)
@@ -152,6 +150,7 @@ class MlpModel(nn.Module):
         input = None
 
         if batch is not None:
+            # self.print_batch_shapes(batch)
             input = prepare_input(
                 self.rgb_encoder,
                 batch,
@@ -160,6 +159,10 @@ class MlpModel(nn.Module):
             )
         return self.network(input).view(-1, self.cfg.pred_horizon, self.cfg.network.output_shapes["action"][0])
     
+    def print_batch_shapes(self, batch: dict[str, th.Tensor]):
+        for k, v in batch.items():
+            print(f"{k}: {v.shape}")
+
     @property
     def device(self):
         return next(self.parameters()).device
