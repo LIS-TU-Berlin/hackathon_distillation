@@ -10,6 +10,7 @@ from omegaconf import DictConfig
 from hackathon_distillation.networks.ddpm_rgb_encoder import RgbEncoder
 from hackathon_distillation.policy.ModelWrapperABC import ModelWrapper
 from hackathon_distillation.policy.utils.normalize import Normalize, Unnormalize
+from hackathon_distillation.networks.depth_encoder import DepthImageEncoder
 
 
 def prepare_global_conditioning(
@@ -19,7 +20,6 @@ def prepare_global_conditioning(
     use_images: bool = False
 ) -> th.Tensor:
     """Computes the conditioning from observations and timesteps."""
-    # TODO: fix this once the dataset is ready
     batch_size, n_obs_steps = batch["obs.state"].shape[:2]
 
     global_cond_feats = [batch["obs.state"][:, :n_obs_steps].to(device)]
@@ -28,9 +28,9 @@ def prepare_global_conditioning(
         imgs = batch["obs.img"][:, :n_obs_steps]
         if imgs.ndim < 6:
             imgs = imgs.unsqueeze(2)  # add extra dimension; hack for datasets where the single camera is implicit
-        img_inputs = einops.rearrange(imgs, "b s n ... -> (b s n) ...")
+        img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...")
         img_features = rgb_encoder(img_inputs.to(device))
-        img_features = einops.rearrange(img_features, "(b s n) ... -> b s (n ...)", b=batch_size, s=n_obs_steps)
+        img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)
         global_cond_feats.append(img_features)
 
     conditioning = th.cat(global_cond_feats, dim=-1).flatten(start_dim=1)
@@ -195,7 +195,7 @@ class DdpmModel(nn.Module):
         self.cfg = cfg
         self.rgb_encoder = None
 
-        self._use_images = False #any(k.startswith("obs.img") for k in cfg.network.input_shapes)
+        self._use_images = any(k.startswith("obs.img") for k in cfg.network.input_shapes)
 
         # Compute global_cond_dim
         global_cond_dim = 0
@@ -204,10 +204,9 @@ class DdpmModel(nn.Module):
             global_cond_dim += cfg.network.input_shapes["obs.state"][0]
 
         if self._use_images:
-            self.rgb_encoder = RgbEncoder(cfg.network)
+            self.rgb_encoder = DepthImageEncoder(feature_dim=cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
             num_images = len([k for k in cfg.network.input_shapes if k.startswith("obs.img")])
             global_cond_dim += self.rgb_encoder.feature_dim * num_images
-
         self.global_cond_dim = global_cond_dim
 
         # Create the UNet model
@@ -234,3 +233,7 @@ class DdpmModel(nn.Module):
     @property
     def device(self):
         return next(self.parameters()).device
+
+
+if __name__ == "__main__":
+    pass

@@ -83,7 +83,7 @@ class RgbEncoder(nn.Module):
         # The dummy input should take the number of image channels from `config.input_shapes` and it should
         # use the height and width from `config.crop_shape` if it is provided, otherwise it should use the
         # height and width from `config.input_shapes`.
-        image_keys = [k for k in config.input_shapes if k.startswith("observation.image")]
+        image_keys = [k for k in config.input_shapes if k.startswith("obs.img")]
         # Note: we have a check in the config class to make sure all images have the same shape.
         image_key = image_keys[0]
         dummy_input_h_w = (

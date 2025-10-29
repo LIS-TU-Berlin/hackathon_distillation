@@ -319,7 +319,6 @@ class UnconditionalUnetEncoder(nn.Module):
 
         # Pass through each encoder layer
         for layer in self.encoder_layers:
-            print(x.shape)
             x = layer(x)
 
         # Global pooling
@@ -373,18 +372,15 @@ class UnconditionalUnetDecoder(nn.Module):
         Returns:
             Tensor: Reconstructed tensor of shape (B, T, D).
         """
-        print(x.shape, "z shape")
         x = self.decoder_input(x)
         x = x.view(x.size(0), -1, self.initial_time)
 
         # Pass through each decoder layer
         for i, layer in enumerate(self.decoder_layers):
-            print(x.shape, i)
             x = layer(x)
 
         # Final convolution to get back to input dimensions
         x = self.final_conv(x)  # Shape: (B, D, T)
-        print(x.shape, "Last")
 
         # Rearrange back to (B, T, D)
         x = einops.rearrange(x, "b d t -> b t d")
