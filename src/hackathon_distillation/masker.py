@@ -104,15 +104,27 @@ if __name__ == "__main__":
     mask_seg = m.segment(rgb)
     mask_blob = m.blob(rgb)
 
-    D = hack.DataPlayer(mask_blob, mask_seg)
+    D = hack.DataPlayer(mask_blob, depth)
 
     t0 = bot.get_t()
     target_pos = ee0.copy()
-    while bot.get_t() - t0 < 10:
+
+    seg_ms = 0.0
+    blob_ms = 0.0   
+    cnt = 0
+
+    while bot.get_t() - t0 < 30:
         rgb, depth = bot.getImageAndDepth('cameraWrist')
+
+        start = time.perf_counter()
         mask_seg = m.segment(rgb)
+        seg_ms += (time.perf_counter() - start) * 1000.0
+        
+        start = time.perf_counter()
         mask_blob = m.blob(rgb)
-        D.update(mask_blob, mask_seg)
+        blob_ms += (time.perf_counter() - start) * 1000.0
+        
+        D.update(mask_blob, depth)
 
         target_pos *= 1.001
         #q_target, ret = m.IK(target_pos)
@@ -127,8 +139,13 @@ if __name__ == "__main__":
         
         time.sleep(0.1)
 
+        cnt += 1
+
         key = bot.sync(S.C, .1)
         if key==ord('q'):
             break
+
+        print(f"Average segmentation time: {seg_ms/cnt:.2f} ms")
+        print(f"Average blob detection time: {blob_ms/cnt:.2f} ms")
 
 
