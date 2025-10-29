@@ -17,6 +17,7 @@ def h5_to_replaybuffer(
     chunks=None,                    # dict like {'depth': (chunk_T, ...)}
     T=None,                        # optional fixed episode length check
     verbose=True,
+    num_episodes=None,              # optional max number of episodes to read
 ):
     """
     Read episodes epi000i from H5 and append into the ReplayBuffer.
@@ -38,6 +39,9 @@ def h5_to_replaybuffer(
     # your H5Reader likely exposes keys; adapt if needed
     all_keys = list(h5_reader.fil.keys())  # or h5_reader.list("/")
     epi_names = sorted([k for k in all_keys if re.fullmatch(r"epi\d{4}", k)])
+    if num_episodes is not None:
+        epi_names = epi_names[:num_episodes]
+
     if verbose: print(f"Found {len(epi_names)} episodes")
 
     # 3) optional: write any meta you want (e.g., tau_step, n_episodes)
@@ -679,8 +683,9 @@ if __name__ == "__main__":
     rb = h5_to_replaybuffer(
         h5_reader=h5,
         keys=('depth','ee_pos','ee_action', 'rgb'),
-        zarr_out_path="/home/data/hackathon/data.zarr",
+        zarr_out_path="/home/data/hackathon/test_data.zarr",
         compressor='disk',  # better for on-disk storage
+        num_episodes=10
     )
 
     # quick access examples:

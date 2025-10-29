@@ -9,7 +9,6 @@ from omegaconf import DictConfig
 from hackathon_distillation.networks.depth_encoder import DepthImageEncoder
 from hackathon_distillation.policy.ModelWrapperABC import ModelWrapper
 from hackathon_distillation.policy.utils.normalize import Normalize, Unnormalize
-from hackathon_distillation.networks.base_models import MLP
 
 def prepare_input(
     rgb_encoder: th.nn.Module,
@@ -55,7 +54,7 @@ class MlpWrapper(ModelWrapper):
         )
         
         # Instantiate the model
-        self.model = MLP(cfg)
+        self.model = MlpModel(cfg)
 
     def compute_loss(self, model: th.nn.Module, batch: dict[str, th.Tensor]) -> dict[str, th.Tensor]:
         """
@@ -78,7 +77,7 @@ class MlpWrapper(ModelWrapper):
         pred = model(batch)  # shape: (B, pred_horizon, action_dim)
 
         # Basic MSE between prediction and normalized target actions.
-        target = batch["action"]  # already normalized above
+        target = batch["action"].to(model.device)  # already normalized above
         loss = F.mse_loss(pred, target, reduction="none")  # (B, pred_horizon, action_dim)
 
         # Optional mask for padded timesteps.
@@ -115,24 +114,8 @@ class MlpWrapper(ModelWrapper):
 
     def configure_optimizers(self, **kwargs) -> tuple[list[th.optim.Optimizer], list[th.optim.lr_scheduler._LRScheduler]]:
         """Return list of optimizers and list of schedulers."""
-        decay_params, no_decay_params = self.model.network.configure_parameters()
-        if self.model._use_images:
-            decay_params += list(self.model.rgb_encoder.parameters())
-        optim_groups = [
-            {
-                "params": decay_params,
-                "weight_decay": self.config.optimizer.kwargs.weight_decay,
-                "lr": self.config.optimizer.kwargs.lr,
-            },
-            {
-                "params": no_decay_params,
-                "weight_decay": 0.0,
-                "lr": self.config.optimizer.kwargs.lr,
-            },
-        ]
-
         optimizer_cls = hydra.utils.get_class(self.config.optimizer._target_)
-        optimizer = optimizer_cls(optim_groups, **self.config.optimizer.kwargs)
+        optimizer = optimizer_cls(self.model.parameters(), **self.config.optimizer.kwargs)
         optimizer.train_mode = True
 
         return [optimizer], []
@@ -158,29 +141,28 @@ class MlpModel(nn.Module):
             input_dim += self.rgb_encoder.feature_dim * num_images
 
         self.input_dim = input_dim
+        print(f"MlpModel: input_dim = {self.input_dim}")
 
         # Create the UNet model
         self.network = hydra.utils.get_class(self.cfg.network.network_cls)(
             self.cfg, input_dim=self.input_dim * self.cfg.obs_horizon,
-            output_dim=self.cfg.output_shapes["action"][0]
+            output_dim=self.cfg.network.output_shapes["action"][0]* self.cfg.pred_horizon
         )
 
     def forward(
         self,
-        batch: dict[str, th.Tensor]
+        batch: dict[str, th.Tensor], 
     ) -> th.Tensor:
         input = None
-        # get device from batch 
-        dev = batch["obs.state"].device
 
         if batch is not None:
             input = prepare_input(
                 self.rgb_encoder,
                 batch,
-                device=dev,
+                device=self.device,
                 use_images=self._use_images
             )
-        return self.network(input)
+        return self.network(input).view(-1, self.cfg.pred_horizon, self.cfg.network.output_shapes["action"][0])
     
     @property
     def device(self):

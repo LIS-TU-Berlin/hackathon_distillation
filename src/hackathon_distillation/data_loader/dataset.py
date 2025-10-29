@@ -42,6 +42,7 @@ class BallImageDataset(BaseImageDataset):
         self.obs_horizon = pad_before + 1
         self.action_horizon = pad_after + 1
 
+        print("Loading dataset from:", data_path)
         self.replay_buffer = ReplayBuffer.copy_from_path(
             data_path, keys=['depth', 'ee_pos', 'ee_action', 'rgb'])
         val_mask = get_val_mask(

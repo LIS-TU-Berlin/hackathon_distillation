@@ -13,7 +13,7 @@ misc_save_path: "misc"
 # Training hyperparams
 is_debug: true
 epochs: 400
-batch_size: 128   # this is per device if ddp is used
+batch_size: 32   # this is per device if ddp is used
 grad_clip_norm: 10.
 seed: 123
 port: 12338
@@ -41,7 +41,7 @@ network:
   dropout: 0.
   hidden_dims: [ 512, 1024, 2048 ]
   input_shapes: {
-    "obs.img": [3, 360, 640],  # comment out for no images
+    "obs.img": [1, 360, 640],  # comment out for no images
     "obs.state": [ 3 ],
   }
   input_normalization_modes: {
@@ -54,6 +54,13 @@ network:
   output_normalization_modes: {
     "action": "min_max",
   }
+  pretrained_backbone_weights: null #'DEFAULT'    # comment out for no pretrained backbone
+  use_group_norm: True
+  n_groups: 8
+  vision_backbone: resnet18
+  crop_shape: [ 84, 84 ]
+  crop_is_random: True
+  spatial_softmax_num_keypoints: 32
   use_layer_norm: True
 
   # MLP.

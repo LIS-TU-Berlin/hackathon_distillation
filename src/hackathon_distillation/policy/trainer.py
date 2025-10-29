@@ -317,6 +317,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
     # create dataset from file
     train_data = BallImageDataset(
         data_path=DATA_PATH / "data.zarr",
+        # data_path=DATA_PATH / "test_data.zarr",
         horizon=cfg.pred_horizon,
         pad_before=cfg.obs_horizon-1,
         pad_after=cfg.action_horizon-1, 
