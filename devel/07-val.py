@@ -3,10 +3,12 @@ import robotic as ry
 import numpy as np
 from typing import Tuple, List, Any
 import time
+import torch
 
 import hackathon_distillation as hack
 
-# Input depth, output position, keep orientation free
+# Input depth, 3D EE position, output position, keep orientation free
+# out: seq of actions: [prediction_horizon, 3D points]
 
 class Robot:
 
@@ -15,6 +17,10 @@ class Robot:
         self.S = hack.Scene()
         self.q0 = self.S.C.getJointState()
         self.bot = ry.BotOp(C=self.S.C, useRealRobot=self.args.real)
+        self.modelpth = args.modelpth
+
+        # Load the model
+        self.model = None  # TODO
 
     def IK(self, target_pos):
         komo = ry.KOMO(self.S.C, 1, 1, 0, False)
@@ -33,10 +39,16 @@ class Robot:
 
         return [komo.getPath()[0], ret]
     
-    def get_target_pose(self):
-        # get target pose from model
-        pass
+    def predict(self, depth:np.ndarray, ee_pos:np.ndarray):
 
+        depth_torch = torch.from_numpy(depth)
+        ee_pos_torch = torch.from_numpy(ee_pos)
+
+        # tgt_ee_pos_torch = self.model(depth_torch, ee_pos_torch)
+        # tgt_ee_pos = tgt_ee_pos_torch.cpu().detach().numpy()
+        # return tgt_ee_pos
+        return ee_pos*1.01 # TODO: remove this and uncomment above
+    
     def view(self):
         rgb, depth = self.bot.getImageAndDepth('cameraWrist')
         
@@ -49,62 +61,48 @@ class Robot:
             rgb, depth = self.bot.getImageAndDepth('cameraWrist')
             D.update(rgb, depth)
 
-    def replay(self):
+    def validate(self):
         """
-        Replay h5 data
-        """
+        Run predictions from model
+        """        
         
-        # Load h5 data
-        reader = hack.H5Reader(self.args.data)
         rgb, depth = self.bot.getImageAndDepth('cameraWrist')
         
         D = hack.DataPlayer(rgb, depth)
 
-        for i, episode in enumerate(reader.fil.keys()):
+        # Initialize motion
+        self.bot.moveTo(self.q0)
+        self.bot.wait(self.S.C, forKeyPressed=False, forTimeToEnd=True)
+        self.bot.sync(self.S.C, .1)
 
-            print(f"Testing episode {episode}")
-            data_ee = reader.read(f"{episode}/ee_pos")
+        t0 = self.bot.get_t()
 
-            self.bot.moveTo(self.q0)
-            self.bot.wait(self.S.C, forKeyPressed=False, forTimeToEnd=True)
+        while self.bot.get_t() - t0 < args.T_ep:
 
-            for p in data_ee:
+            # Inputs for model: rgb, depth
+            rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+            D.update(rgb, depth)
 
-                rgb, depth = self.bot.getImageAndDepth('cameraWrist')
-                D.update(rgb, depth)
+            # Inputs for model: ee position
+            ee_pos = self.S.C.getFrame('l_gripper').getPosition()
 
-                self.bot.sync(self.S.C, .1)
+            # Get the target position from model
+            target_pos = self.predict(depth, ee_pos)
 
-                t = self.bot.get_t()
+            q_target, ret = self.IK(target_pos)
+            if ret.feasible:
+                self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
+            else:
+                print("Not feasible!")
+                return
 
-                # Get the target position from model
-                target_pos = p.copy()
-                target_pos = np.clip(target_pos, a_min=[-10., .1, .6], a_max=[10., 10., 10.])
+            self.bot.sync(self.S.C, .1)
+           
+            time.sleep(args.sleep)
 
-                q_target, ret = self.IK(target_pos)
-                if ret.feasible:
-                    self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
-                else:
-                    print("Not feasible!")
-                    return
-                
-                time.sleep(args.sleep)
-
-
-                key = self.bot.sync(self.S.C, .1)
-                if key==ord('q'):
-                    break
-
-            if i == self.args.ep - 1:
-                break  # only run 2 episodes for demo
-
-    def run(self):
-        """
-        Run on robot
-        """
-
-        while self.bot.get_t() < self.args.T_ep:
-            pass
+            key = self.bot.sync(self.S.C, .1)
+            if key==ord('q'):
+                break
 
 if __name__ == "__main__":
 
@@ -114,12 +112,13 @@ if __name__ == "__main__":
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
     p.add_argument("--data", type=str, default="", help="Path to h5 file")
+    p.add_argument("--modelpth", type=str, default="", help="Path to model")
     p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot 
     args = p.parse_args()
 
     print(args)
 
-    Robot(args).replay()
+    Robot(args).validate()
 
 
 
