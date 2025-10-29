@@ -162,8 +162,7 @@ class Trainer:
         assert self._is_setup, "You must call trainer.setup() before training!"
 
         for epoch in range(1, epochs + 1):
-            # if self.strategy != TrainStrategy.cuda:
-            #     train_loader.sampler.set_epoch(epoch)
+            train_loader.sampler.set_epoch(epoch)
             self._train(train_loader, epoch)
 
             # Validation
@@ -305,8 +304,8 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
     warnings.filterwarnings("ignore", category=UserWarning)
     #th.set_float32_matmul_precision("high")
 
-    setup(pid, n_devices, str(cfg.port))
     th.cuda.set_device(pid)
+    setup(pid, n_devices, str(cfg.port))
 
     # Create dataset -- TODO: find proper split and collation etc
     # data_augmentations = img_transforms_wrapper(cfg)
@@ -337,7 +336,11 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
     print("Dataset creation finished.")
 
     # TODO: check with the samplers
-    #if cfg.strategy in ("ddp", "fsdp"):
+    n_workers = 1
+    pin_memory = False
+    if cfg.strategy in ("ddp", "fsdp"):
+        n_workers = 1
+        pin_memory = True
     train_sampler = DistributedSampler(
         train_data,
         rank=pid,
@@ -348,10 +351,10 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         train_data,
         batch_size=cfg.batch_size,
         sampler=train_sampler,
-        num_workers=4,
+        num_workers=n_workers,
         persistent_workers=True,    # must be True!
-        pin_memory=True,            # must be True!
-        drop_last=True,
+        pin_memory=pin_memory,            # must be True!
+        drop_last=False,
         shuffle=False
     )
 
@@ -365,7 +368,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         val_data,
         batch_size=cfg.batch_size,
         sampler=val_sampler,
-        num_workers=4,
+        num_workers=n_workers,
         persistent_workers=True,
         pin_memory=True,
     )

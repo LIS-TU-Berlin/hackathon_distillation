@@ -1,4 +1,6 @@
 import argparse
+from pathlib import Path
+
 import robotic as ry
 import numpy as np
 from typing import Tuple, List, Any
@@ -7,6 +9,10 @@ import torch
 
 import hackathon_distillation as hack
 from collections import deque
+
+from hackathon_distillation.policy.policy import Policy
+from hackathon_distillation.policy.trainer import DATA_PATH
+
 
 # Input depth, 3D EE position, output position, keep orientation free
 # out: seq of actions: [prediction_horizon, 3D points]
@@ -19,6 +25,7 @@ class Robot:
         self.q0 = self.S.C.getJointState()
         self.bot = ry.BotOp(C=self.S.C, useRealRobot=self.args.real)
         self.modelpth = args.modelpth
+        self.device_id = args.device_id
 
         # FIFO queues to store obs history
         self.ee_queue = deque(maxlen=args.maxhist)
@@ -26,7 +33,8 @@ class Robot:
         self.rgb_queue = deque(maxlen=args.maxhist)
 
         # Load the model
-        self.model = None  # TODO
+        stats_file = Path(DATA_PATH / "data_stats.pt")
+        self.policy = Policy(Path(self.modelpth), stats_file, map_location=f"cuda:{self.device_id}")  # todo: fix for cpu
 
     def IK(self, target_pos):
         komo = ry.KOMO(self.S.C, 1, 1, 0, False)
@@ -46,14 +54,10 @@ class Robot:
         return [komo.getPath()[0], ret]
     
     def predict(self, depth:np.ndarray, ee_pos:np.ndarray):
-
-        depth_torch = torch.from_numpy(depth)
-        ee_pos_torch = torch.from_numpy(ee_pos)
-
-        # tgt_ee_pos_torch = self.model(depth_torch, ee_pos_torch)
-        # tgt_ee_pos = tgt_ee_pos_torch.cpu().detach().numpy()
-        # return tgt_ee_pos
-        return ee_pos*1.01 # TODO: remove this and uncomment above
+        print(ee_pos.shape, depth.shape)
+        batch = {"obs.img": torch.from_numpy(depth)[None], "obs.state": torch.from_numpy(ee_pos)}
+        actions = self.policy.select_action(batch)
+        return actions
     
     def view(self):
         rgb, depth = self.bot.getImageAndDepth('cameraWrist')
@@ -72,14 +76,17 @@ class Robot:
         Run predictions from model
         """        
 
-        # Prime the queues so they are full from the start
-        for _ in range(self.args.maxhist):
+        # # Prime the queues so they are full from the start
+        # for _ in range(self.args.maxhist):
+        if self.args.real:
             rgb, depth = self.bot.getImageAndDepth('cameraWrist')
-            ee = np.array(self.S.C.getFrame('l_gripper').getPosition())
-            self.depth_queue.append(depth.copy())
-            self.rgb_queue.append(rgb.copy())
-            self.ee_queue.append(ee.copy())
-        
+        else:
+            rgb, depth = self.S.get_rgb_and_depth()
+        #     ee = np.array(self.S.C.getFrame('l_gripper').getPosition())
+        #     self.depth_queue.append(depth.copy())
+        #     self.rgb_queue.append(rgb.copy())
+        #     self.ee_queue.append(ee.copy())
+        #
         D = hack.DataPlayer(rgb, depth)
 
         # Initialize motion
@@ -94,28 +101,35 @@ class Robot:
             # Inputs for model: rgb, depth
 
             # Current
-            rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+            #rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+            if self.args.real:
+                rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+            else:
+                rgb, depth = self.S.get_rgb_and_depth()
             D.update(rgb, depth)
             ee_pos = self.S.C.getFrame('l_gripper').getPosition()
 
-            # Previous
-            depth_prev = self.depth_queue.popleft()
-            rgb_prev = self.rgb_queue.popleft()
-            ee_prev = self.ee_queue.popleft()
+            # # New batch
+            # if len(self._queues["action"]) == 0:
+            #     batch = {k: torch.stack(list(self._queues[k]), dim=1) for k in batch if k in (self.depth_queue, self.rgb_queue, self.ee_queue)}
+            #     # Get the target position from model
+            #     target_pos = self.predict(depth, ee_pos)
+            #
+            # depth_prev = self.depth_queue.popleft()
+            # rgb_prev = self.rgb_queue.popleft()
+            # ee_prev = self.ee_queue.popleft()
+            #
+            # # Insert current observations into the queues
+            # self.depth_queue.append(depth)
+            # self.rgb_queue.append(rgb)
+            # self.ee_queue.append(ee_pos)
+            #
+            # # Form the batch
+            # depth_batch = []
+            # for i in range(self.args.hist):
+            #     depth_batch.append
 
-            # Insert current observations into the queues
-            self.depth_queue.append(depth)
-            self.rgb_queue.append(rgb)
-            self.ee_queue.append(ee_pos)
-
-            # Form the batch
-            depth_batch = []
-            for i in range(self.args.hist):
-                depth_batch.append
-
-            # Get the target position from model
             target_pos = self.predict(depth, ee_pos)
-
             q_target, ret = self.IK(target_pos)
             if ret.feasible:
                 self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
@@ -139,13 +153,17 @@ if __name__ == "__main__":
     p.add_argument("--maxhist", type=int, default=2, help="Max. len of input history")
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
-    p.add_argument("--modelpth", type=str, default="", help="Path to model")
-    p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot 
+    p.add_argument("--modelpth", type=str, default="/home/data/hackathon/ckpts/mlp/run_02/last.pt", help="Path to model")
+    p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot
+    p.add_argument("--device_id", type=int, default=1, help="for cuda")  # Use this arg to run on the real robot
     args = p.parse_args()
 
     print(args)
 
     Robot(args).validate()
+
+    # stats_file = Path(DATA_PATH / "data_stats.pt")
+    # policy = Policy(Path("/home/data/hackathon/ckpts/mlp/run_02/last.pt"), stats_file, map_location="cuda:1")
 
 
 

@@ -19,8 +19,8 @@ class Scene:
         self.camview = ry.CameraView(self.C)
         self.camview.setCamera(self.C.getFrame('cameraWrist'))
 
-    def get_rgb_and_depth(self):
-        rgb, depth = self.camview.computeImageAndDepth(self.C, simulateDepthNoise=True)
+    def get_rgb_and_depth(self, get_noise: bool = True):
+        rgb, depth = self.camview.computeImageAndDepth(self.C, simulateDepthNoise=get_noise)
         # pcl = ry.depthImage2PointCloud(depth, self.camview.getFxycxy())
         return rgb, depth
 
@@ -42,4 +42,3 @@ class DataPlayer:
         self.im1.set_data(rgb)
         self.im2.set_data(depth)
         plt.pause(.01)
-

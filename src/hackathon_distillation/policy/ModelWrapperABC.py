@@ -90,14 +90,14 @@ class ModelWrapper(ABC):
         """
         This function expects `batch` to have:
         {
-            "observation.state": (B, n_obs_steps, state_dim)
+            "obs.state": (B, n_obs_steps, state_dim)
 
-            "observation.images": (B, n_obs_steps, num_cameras, C, H, W)
+            "obs.imgs": (B, n_obs_steps, num_cameras, C, H, W)
                 AND/OR
-            "observation.environment_state": (B, environment_dim)
+            "obs.environment_state": (B, environment_dim)
         }
         """
-        batch_size, n_obs_steps = batch["observation.state"].shape[:2]
+        batch_size, n_obs_steps = batch["obs.state"].shape[:2]
         assert n_obs_steps == self.config.obs_horizon, (
             f"Expected {self.config.obs_horizon} observation steps, but got {n_obs_steps}."
         )

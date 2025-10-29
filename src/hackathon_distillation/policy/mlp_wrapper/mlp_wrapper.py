@@ -123,8 +123,7 @@ class MlpModel(nn.Module):
         self.cfg = config
 
         self.rgb_encoder = None
-
-        self._use_images = True #any(k.startswith("obs.img") for k in cfg.network.input_shapes)
+        self._use_images = any(k.startswith("obs.img") for k in config.network.input_shapes)
 
         # Compute input_dim
         input_dim = 0
