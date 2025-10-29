@@ -15,3 +15,5 @@ ckpts/
 .idea/
 
 devel/*.pt
+*.pt
+

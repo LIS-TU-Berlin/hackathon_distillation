@@ -6,6 +6,7 @@ import time
 import torch
 
 import hackathon_distillation as hack
+from collections import deque
 
 # Input depth, 3D EE position, output position, keep orientation free
 # out: seq of actions: [prediction_horizon, 3D points]
@@ -18,6 +19,11 @@ class Robot:
         self.q0 = self.S.C.getJointState()
         self.bot = ry.BotOp(C=self.S.C, useRealRobot=self.args.real)
         self.modelpth = args.modelpth
+
+        # FIFO queues to store obs history
+        self.ee_queue = deque(maxlen=args.maxhist)
+        self.depth_queue = deque(maxlen=args.maxhist)
+        self.rgb_queue = deque(maxlen=args.maxhist)
 
         # Load the model
         self.model = None  # TODO
@@ -66,7 +72,13 @@ class Robot:
         Run predictions from model
         """        
 
-        rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+        # Prime the queues so they are full from the start
+        for _ in range(self.args.maxhist):
+            rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+            ee = np.array(self.S.C.getFrame('l_gripper').getPosition())
+            self.depth_queue.append(depth.copy())
+            self.rgb_queue.append(rgb.copy())
+            self.ee_queue.append(ee.copy())
         
         D = hack.DataPlayer(rgb, depth)
 
@@ -80,11 +92,26 @@ class Robot:
         while self.bot.get_t() - t0 < args.T_ep:
 
             # Inputs for model: rgb, depth
+
+            # Current
             rgb, depth = self.bot.getImageAndDepth('cameraWrist')
             D.update(rgb, depth)
-
-            # Inputs for model: ee position
             ee_pos = self.S.C.getFrame('l_gripper').getPosition()
+
+            # Previous
+            depth_prev = self.depth_queue.popleft()
+            rgb_prev = self.rgb_queue.popleft()
+            ee_prev = self.ee_queue.popleft()
+
+            # Insert current observations into the queues
+            self.depth_queue.append(depth)
+            self.rgb_queue.append(rgb)
+            self.ee_queue.append(ee_pos)
+
+            # Form the batch
+            depth_batch = []
+            for i in range(self.args.hist):
+                depth_batch.append
 
             # Get the target position from model
             target_pos = self.predict(depth, ee_pos)
@@ -108,6 +135,8 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser()
     p.add_argument("--T_ep", type=int, default=10, help="Time to move")
+    p.add_argument("--hist", type=int, default=2, help="Len of input history")
+    p.add_argument("--maxhist", type=int, default=2, help="Max. len of input history")
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
     p.add_argument("--modelpth", type=str, default="", help="Path to model")
