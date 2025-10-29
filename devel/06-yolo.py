@@ -1,9 +1,11 @@
 import torch
 import robotic as ry
-import hackathon_distillation as hack
 import cv2
 import numpy as np
 from ultralytics import YOLO
+from typing import List, Tuple, Any
+
+import hackathon_distillation as hack
 
 class Robot:
     def __init__(self, real=False):
@@ -13,7 +15,6 @@ class Robot:
         
     def run(self):
 
-        #model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
         model = YOLO("yolo11n.pt", task='detect')
 
         rgb, depth = self.bot.getImageAndDepth('cameraWrist')
@@ -41,7 +42,54 @@ class Robot:
 
             break
 
+class Masker:
+
+    def __init__(self, detect_model_pth:str="yolo11m.pt", segment_model_pth:str="yolo11m-seg.pt", bot:ry.BotOp=None):
+        self.bot = bot
+        self.detect_model = YOLO(detect_model_pth)
+        self.segment_model = YOLO(segment_model_pth)
+
+    def detect_yolo(self, img:np.ndarray):
+        """
+        
+        """
+        assert img.ndim == 3 and img.shape[2] == 3
+
+        results = self.detect_model([img])
+        for r in results:
+            r.show() 
+
+    def segment_yolo(self, img:np.ndarray):
+        """
+        
+        """
+        results = self.segment_model([img])
+        for r in results:
+            r.show() 
+
+            for m in r.masks:
+                
+                m = np.squeeze(m)
+
+                # convert to uint8 image (0 or 255)
+                mask_img = (m > 0).astype(np.uint8) * 255
+
+                # Not working
+                fname = f"mask.png"
+                cv2.imwrite(fname, mask_img)
+                print("Saved mask to", fname)
+
+
+
 if __name__ == "__main__":
 
-    R = Robot(real=True)
-    R.run()
+    m = Masker()
+
+    img = cv2.imread('/home/sayantan/Pictures/test/objects.jpg', cv2.IMREAD_COLOR)
+    if img is None:
+        raise FileNotFoundError("image not found")
+    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    #m.detect_yolo(rgb)
+    m.segment_yolo(rgb)
+
