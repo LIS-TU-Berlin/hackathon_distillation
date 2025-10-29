@@ -24,6 +24,11 @@ class Robot:
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
         komo.addObjective([], ry.FS.negDistance, ["l_panda_coll3", "wall"], ry.OT.ineq)
 
+        # Fix top down orientation
+        komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "table"], ry.OT.eq, [-1.0])
+        komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "ball"], ry.OT.eq, [-1.0])
+
+
         sol = ry.NLP_Solver(komo.nlp(), verbose=0)
         sol.setOptions(stopInners=10, damping=1e-4) ##very low cost
         ret = sol.solve()
@@ -122,6 +127,30 @@ class Robot:
                 D.update(rgb[i], depth[i])
                 time.sleep(0.1)
 
+    def test_constraints(self):
+
+        frames = self.S.C.getFrames()
+        for f in frames:
+            print(f.name)
+
+        f = self.S.C.addFrame(name='cam')
+        f.setShape(type=ry.ST.marker, size=[.3])
+        f.setPosition(self.S.C.getFrame('cameraWrist').getPosition())
+        f.setQuaternion(self.S.C.getFrame('cameraWrist').getQuaternion())
+
+        f = self.S.C.addFrame(name='tab')
+        f.setShape(type=ry.ST.marker, size=[.3])
+        f.setPosition(self.S.C.getFrame('table').getPosition())
+        f.setQuaternion(self.S.C.getFrame('table').getQuaternion())
+        self.S.C.view()
+        
+        time.sleep(10.0)
+
+        poss_ball = self.S.C.getFrame('ball').getPosition()
+        pos_camera = self.S.C.getFrame('cameraWrist').getPosition()
+
+
+
 
     def run(self):
         """
@@ -144,9 +173,9 @@ if __name__ == "__main__":
 
     print(args)
 
-    #Robot(args).replay()
-    Robot(args).view_img()
-
+    Robot(args).replay()
+    #Robot(args).view_img()
+    #Robot(args).test_constraints()
 
 
 
