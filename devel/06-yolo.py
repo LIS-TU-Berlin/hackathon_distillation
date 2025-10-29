@@ -2,7 +2,7 @@ import torch
 import robotic as ry
 import cv2
 import numpy as np
-from ultralytics import YOLO
+from ultralytics import YOLO, SAM, FastSAM
 from typing import List, Tuple, Any
 
 import hackathon_distillation as hack
@@ -44,10 +44,10 @@ class Robot:
 
 class Masker:
 
-    def __init__(self, detect_model_pth:str="yolo11m.pt", segment_model_pth:str="yolo11m-seg.pt", bot:ry.BotOp=None):
+    def __init__(self, detect_model_pth:str="yolo11m.pt", segment_model_pth:str="FastSAM-s.pt", bot:ry.BotOp=None):
         self.bot = bot
         self.detect_model = YOLO(detect_model_pth)
-        self.segment_model = YOLO(segment_model_pth)
+        self.segment_model = FastSAM(segment_model_pth)
 
     def detect_yolo(self, img:np.ndarray):
         """
@@ -59,7 +59,7 @@ class Masker:
         for r in results:
             r.show() 
 
-    def segment_yolo(self, img:np.ndarray):
+    def segment_sam(self, img:np.ndarray):
         """
         
         """
@@ -69,16 +69,7 @@ class Masker:
 
             for m in r.masks:
                 
-                m = np.squeeze(m)
-
-                # convert to uint8 image (0 or 255)
-                mask_img = (m > 0).astype(np.uint8) * 255
-
-                # Not working
-                fname = f"mask.png"
-                cv2.imwrite(fname, mask_img)
-                print("Saved mask to", fname)
-
+                m.shape
 
 
 if __name__ == "__main__":
@@ -91,5 +82,5 @@ if __name__ == "__main__":
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     #m.detect_yolo(rgb)
-    m.segment_yolo(rgb)
+    m.segment_sam(rgb)
 
