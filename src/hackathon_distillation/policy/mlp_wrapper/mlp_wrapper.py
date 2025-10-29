@@ -101,16 +101,13 @@ class MlpWrapper(ModelWrapper):
     ) -> th.Tensor:
         """
         Greedy inference: predict actions directly from observations.
-        Returns UNNORMALIZED actions of shape (B, pred_horizon, action_dim).
+        Batch is already normalized.
+        Returns NORMALIZED actions of shape (B, pred_horizon, action_dim).
         """
         if batch is None:
             raise ValueError("`batch` must be provided for inference.")
-
-        norm_in = self.normalize_inputs(batch)
-        pred_norm = self.model(norm_in)  # (B, pred_horizon, action_dim)
-
-        unnorm = self.unnormalize_outputs({"action": pred_norm})
-        return unnorm["action"]
+        pred_norm = self.model(batch)  # (B, pred_horizon, action_dim)
+        return pred_norm
 
     def configure_optimizers(self, **kwargs) -> tuple[list[th.optim.Optimizer], list[th.optim.lr_scheduler._LRScheduler]]:
         """Return list of optimizers and list of schedulers."""

@@ -3,16 +3,13 @@ defaults:
   - _self_
 
 # Data
-video: False
-data_path: "demos/pusht"
-data_name: "lerobot/pusht"
-log_dir: "logs"
+log_dir: "logs/mlp"
 ckpt_save_path: "ckpts"
 misc_save_path: "misc"
 
 # Training hyperparams
-is_debug: true
-epochs: 400
+is_debug: false
+epochs: 200
 batch_size: 32   # this is per device if ddp is used
 grad_clip_norm: 10.
 seed: 123
@@ -28,8 +25,8 @@ save_max: 3
 #n_obs_steps: 1    # Use 0 for unconditional generation -- not used during training
 #horizon: 128  # prediction horizon -- what the actual model predicts
 obs_horizon: 2
-pred_horizon: 16
-action_horizon: 8
+pred_horizon: 4
+action_horizon: 2
 
 # Policy options
 model_type: src.hackathon_distillation.policy.mlp_wrapper.MlpWrapper 
