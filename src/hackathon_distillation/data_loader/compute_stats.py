@@ -101,9 +101,9 @@ def compute_dataset_stats_welford(dataset: BaseImageDataset, chunk_size: int = 8
             raise ValueError(f"Replay buffer key '{rb_key}' has unexpected shape: {getattr(arr, 'shape', None)}")
         feature_shape = arr.shape[1:]  # drop the sample dimension
 
-        if out_key == "obs.img":
-            # Add a channel dimension (C=1) to match the dataset's existing stats convention.
-            feature_shape = (1, *feature_shape)
+        # deprecated
+        # if out_key == "obs.img":
+        #     feature_shape = (1, *feature_shape)
 
         accs[out_key] = _WelfordAcc(feature_shape)
 

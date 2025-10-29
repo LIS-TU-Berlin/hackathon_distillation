@@ -54,8 +54,7 @@ class Robot:
         return [komo.getPath()[0], ret]
     
     def predict(self, depth:np.ndarray, ee_pos:np.ndarray):
-        print(ee_pos.shape, depth.shape)
-        batch = {"obs.img": torch.from_numpy(depth)[None], "obs.state": torch.from_numpy(ee_pos)}
+        batch = {"obs.img": torch.Tensor(depth)[None], "obs.state": torch.Tensor(ee_pos)[None]}
         actions = self.policy.select_action(batch)
         return actions
     

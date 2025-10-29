@@ -108,8 +108,6 @@ class Policy(nn.Module):
         if len(self._queues["action"]) == 0:
             batch = {k: th.stack(list(self._queues[k]), dim=1) for k in batch if k in self._queues}
             batch = to_device(batch, device=self.torch_module.device)
-            for k, v in batch.items():
-                print(k, v.shape)
             batch = self.torch_module.normalize_inputs(batch)
             actions = self.policy.generate_actions(batch)
             actions = self.policy.unnormalize_outputs({"action": actions})["action"]

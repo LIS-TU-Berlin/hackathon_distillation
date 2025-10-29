@@ -20,13 +20,10 @@ def prepare_global_conditioning(
 ) -> th.Tensor:
     """Computes the conditioning from observations and timesteps."""
     batch_size, n_obs_steps = batch["obs.state"].shape[:2]
-
     global_cond_feats = [batch["obs.state"][:, :n_obs_steps].to(device, non_blocking=True)]
 
     if use_images:
         imgs = batch["obs.img"][:, :n_obs_steps]
-        if imgs.ndim < 6:
-            imgs = imgs.unsqueeze(2)  # add extra dimension; hack for datasets where the single camera is implicit
         img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...")
         img_features = depth_encoder(img_inputs.to(device, non_blocking=True))
         img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)

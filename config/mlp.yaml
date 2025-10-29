@@ -29,7 +29,7 @@ pred_horizon: 4
 action_horizon: 2
 
 # Policy options
-model_type: src.hackathon_distillation.policy.mlp_wrapper.MlpWrapper 
+model_type: hackathon_distillation.policy.mlp_wrapper.MlpWrapper
 do_mask_loss_for_padding: false
 
 # Network
