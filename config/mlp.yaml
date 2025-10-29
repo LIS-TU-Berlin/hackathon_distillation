@@ -1,0 +1,69 @@
+defaults:
+  - image_transforms: default
+  - _self_
+
+# Data
+video: False
+data_path: "demos/pusht"
+data_name: "lerobot/pusht"
+log_dir: "logs"
+ckpt_save_path: "ckpts"
+misc_save_path: "misc"
+
+# Training hyperparams
+is_debug: true
+epochs: 400
+batch_size: 128   # this is per device if ddp is used
+grad_clip_norm: 10.
+seed: 123
+port: 12338
+devices: [4]
+strategy: cuda  # [cuda, ddp, fsdp]; cuda is single gpu, ddp is data multigpu, fsdp is model & data different gpus
+val_every: 10
+save_every: 20
+save_max: 3
+
+# Prediction setup
+#n_action_steps: 8  # execution horizon
+#n_obs_steps: 1    # Use 0 for unconditional generation -- not used during training
+#horizon: 128  # prediction horizon -- what the actual model predicts
+obs_horizon: 2
+pred_horizon: 16
+action_horizon: 8
+
+# Policy options
+model_type: src.hackathon_distillation.policy.mlp_wrapper.MlpWrapper 
+do_mask_loss_for_padding: false
+
+# Network
+network:
+  activation: ReLU
+  dropout: 0.
+  hidden_dims: [ 512, 1024, 2048 ]
+  input_shapes: {
+    "obs.img": [3, 360, 640],  # comment out for no images
+    "obs.state": [ 3 ],
+  }
+  input_normalization_modes: {
+    "obs.img": "mean_std",
+    "obs.state": "min_max",
+  }
+  output_shapes: {
+    "action": [ 3 ],  # Note we need feature dim first! Find out why and how this works; feature dim is ndof
+  }
+  output_normalization_modes: {
+    "action": "min_max",
+  }
+  use_layer_norm: True
+
+  # MLP.
+  network_cls: hackathon_distillation.networks.base_models.MLP
+
+optimizer:
+  _target_: torch.optim.AdamW
+  kwargs:
+    lr: 5e-4  # defaults to 0.0025
+    # betas: [ 0.95, 0.999 ]
+    eps: 1e-8
+    weight_decay: 1e-6
+    # warmup_steps: 500

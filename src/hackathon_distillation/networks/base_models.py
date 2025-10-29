@@ -1,4 +1,5 @@
 from typing import Optional, Tuple, Type
+from omegaconf import DictConfig
 
 import torch
 from torch import nn
@@ -6,27 +7,24 @@ from torch import nn
 class MLP(nn.Module): 
     def __init__(
         self,
+        config: DictConfig,
         input_dim: int,
         output_dim: int,
-        hidden_dims: Optional[Tuple[int, ...]] = None,
-        activation: Type[nn.Module] = nn.ReLU,
-        dropout: float = 0.0,
-        use_layer_norm: bool = True,
-        **kwargs
     ):
         super(MLP, self).__init__()
-        if hidden_dims is None:
-            hidden_dims = ()
-        
+        config = config.network
+
         layers = []
         prev_dim = input_dim
-        for hidden_dim in hidden_dims:
+        activation = getattr(nn, config.activation)
+
+        for hidden_dim in config.hidden_dims:
             layers.append(nn.Linear(prev_dim, hidden_dim))
-            if use_layer_norm:
+            if config.use_layer_norm:
                 layers.append(nn.LayerNorm(hidden_dim))
             layers.append(activation())
-            if dropout > 0:
-                layers.append(nn.Dropout(dropout))
+            if config.dropout > 0:
+                layers.append(nn.Dropout(config.dropout))
             prev_dim = hidden_dim
         
         layers.append(nn.Linear(prev_dim, output_dim))
