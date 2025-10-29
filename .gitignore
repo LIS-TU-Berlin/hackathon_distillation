@@ -8,6 +8,7 @@ dist/
 wheels/
 *.egg-info
 outputs/
+ckpts/
 
 # Virtual environments
 .venv

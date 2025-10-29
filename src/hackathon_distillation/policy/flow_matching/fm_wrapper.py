@@ -4,8 +4,9 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 
 from hackathon_distillation.policy.ModelWrapperABC import ModelWrapper
-from hackathon_distillation.policy.diffusion.ddpm_wrapper import DdpmModel
+from hackathon_distillation.policy.ddpm_wrapper.ddpm_wrapper import DdpmModel
 from hackathon_distillation.policy.utils.normalize import Normalize, Unnormalize
+from hackathon_distillation.utils.utils_cornelius import to_device
 
 
 class FlowMatchingWrapper(ModelWrapper):
@@ -18,9 +19,9 @@ class FlowMatchingWrapper(ModelWrapper):
 
         Source: Lipman et al. (2022); paper: http://arxiv.org/abs/2210.02747.
         """
-        super().__init__(cfg, dataset_stats)
+        super().__init__(cfg)
         self.num_inference_steps = cfg.num_inference_steps if cfg.num_inference_steps is not None else cfg.noise_scheduler.num_train_timesteps
-        self.model = DdpmModel(cfg)  # ddpm and fm share the same model
+        self.model = DdpmModel(cfg, dataset_stats)  # ddpm and fm share the same model
 
         # use normalizers for in and outputs
         self.normalize_inputs = Normalize(cfg.network.input_shapes, cfg.network.input_normalization_modes, dataset_stats)
@@ -54,11 +55,12 @@ class FlowMatchingWrapper(ModelWrapper):
         assert horizon == self.config.pred_horizon, f"MISMATCH: horizon = {horizon}, config.pred_horizon = {self.config.pred_horizon}"
         assert n_obs_steps == self.config.obs_horizon, f"MISMATCH: n_obs_steps = {n_obs_steps}, config.n_obs = {self.config.obs_horizon}"
 
-        batch = self.normalize_inputs(batch)
-        batch = self.normalize_targets(batch)
+        device_batch = to_device(batch, model.device)
+        device_batch = model.normalize_inputs(device_batch)
+        device_batch = model.normalize_targets(device_batch)
 
         # Sample noise that we'll add to the latents
-        trajectory = batch["action"].to(model.device)
+        trajectory = device_batch["action"].to(model.device)
         noise = th.randn_like(trajectory)
         bsz = trajectory.shape[0]
         if self.config.use_beta:
@@ -71,7 +73,7 @@ class FlowMatchingWrapper(ModelWrapper):
 
         # Predict the noise residual
         target = trajectory - noise
-        pred = model(noisy_trajectory, timesteps.squeeze() * self.pos_emb_scale, batch=batch)
+        pred = model(noisy_trajectory, timesteps.squeeze() * self.pos_emb_scale, batch=device_batch)
         loss = F.mse_loss(pred, target, reduction="none")
 
         # Mask loss wherever the action is padded with copies (edges of the dataset trajectory).
