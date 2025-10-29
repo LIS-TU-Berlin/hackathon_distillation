@@ -143,6 +143,8 @@ class Robot:
         f.setPosition(self.S.C.getFrame('table').getPosition())
         f.setQuaternion(self.S.C.getFrame('table').getQuaternion())
         self.S.C.view()
+
+        print(self.S.C.getFrame('cameraWrist').getAttributes())
         
         time.sleep(10.0)
 
@@ -173,8 +175,8 @@ if __name__ == "__main__":
 
     print(args)
 
-    Robot(args).replay()
-    #Robot(args).view_img()
+    #Robot(args).replay()
+    Robot(args).view_img()
     #Robot(args).test_constraints()
 
 

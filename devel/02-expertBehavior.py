@@ -12,10 +12,12 @@ def test_in_BotOp():
 
 def test_generate_data():
     B = hack.ExpertBehavior()
-    B.reset()
-    # h5 = hack.H5Writer('data.h5')
-    # B.run_with_Sim(h5=h5, verbose=0)
-    B.run_with_Sim(h5=None, verbose=1)
+    h5 = hack.H5Writer('data_20251029.h5')
+    for i in range(10):
+        B.reset()
+        B.run_with_Sim(h5=h5, verbose=1)
+    #B.run_with_Sim(h5="None", verbose=1)
+    
 
 if __name__ == "__main__":
     # test_random_resets()

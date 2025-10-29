@@ -34,7 +34,7 @@ class Robot:
 
         # Load the model
         stats_file = Path(DATA_PATH / "data_stats.pt")
-        self.policy = Policy(Path(self.modelpth), stats_file, map_location=f"cuda:{self.device_id}")  # todo: fix for cpu
+        self.policy = Policy(Path(self.modelpth), stats_file, map_location=f"cpu")  # todo: fix for cpu
 
     def IK(self, target_pos):
         komo = ry.KOMO(self.S.C, 1, 1, 0, False)

@@ -34,10 +34,12 @@ class ExpertBehavior:
         komo.addControlObjective([], 0, 1e-1)
         komo.addObjective([], ry.FS.position, ['ref'], ry.OT.sos, [1e2], target_pos)
 
+        # Collisions and joint limits
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
         komo.addObjective([], ry.FS.negDistance, ["l_panda_coll3", "wall"], ry.OT.ineq)
 
+        # Try to keep the ball in view
         komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "table"], ry.OT.eq, [-1.0])
         komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "ball"], ry.OT.eq, [-1.0])
 
@@ -83,6 +85,8 @@ class ExpertBehavior:
         data_depth = np.empty((num_steps, 360, 640))
         data_ee_action = np.empty((num_steps, 3))
         step = 0
+
+        #self.S.C.getFrame('cameraWrist').setAttributes({'zRange': [0.1, 10.0]})
 
         t = 0
         for step in range(num_steps):
