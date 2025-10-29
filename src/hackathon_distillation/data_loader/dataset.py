@@ -95,9 +95,9 @@ class BallImageDataset(BaseImageDataset):
         rgb = sample['rgb']  # T, 360, 640, 3
         rgb_transposed = np.moveaxis(rgb, -1,1)  # T, 3, 360, 640
         data = {
-            # 'obs.img': sample['depth'][:self.obs_horizon], # T, 360, 640
+            'obs.img': sample['depth'][:self.obs_horizon], # T, 360, 640
             'obs.state': sample['ee_pos'][:self.obs_horizon], # T, 3
-            'obs.img': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
+            #'obs.img': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
             'action': sample['ee_action'] # T, 3
         }
         return data

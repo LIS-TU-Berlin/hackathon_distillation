@@ -14,6 +14,7 @@ from hackathon_distillation.policy.utils.logger import _get_run_name
 
 
 REPO_PATH = Path(os.environ["REPO_PATH"])
+DATA_PATH = Path(os.environ["DATA_PATH"])
 config_path = str(REPO_PATH / "config")
 
 
@@ -23,7 +24,7 @@ def train_cli(cfg: DictConfig) -> None:
 
     pprint(cfg)
     n_devices = th.cuda.device_count()
-    run_name = _get_run_name(cfg.log_dir, cfg.get("run_name")) if not cfg.is_debug else "test"  # TODO: fix perhaps
+    run_name = _get_run_name(DATA_PATH / cfg.log_dir, cfg.get("run_name")) if not cfg.is_debug else "test"  # TODO: fix perhaps
     mp.spawn(
         _train_mp,
         args=(

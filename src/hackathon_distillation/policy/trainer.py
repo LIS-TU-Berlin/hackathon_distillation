@@ -32,7 +32,7 @@ from hackathon_distillation.data_loader.dataset import BallImageDataset
 
 ROOT = pathlib.Path(os.environ["REPO_PATH"])
 CODEBASE_VERSION = os.environ.get("CODEBASE_VERSION")
-DATA_PATH = os.environ.get("DATA_PATH")
+DATA_PATH = pathlib.Path(os.environ.get("DATA_PATH"))
 
 
 def setup(rank, world_size, port):
@@ -316,7 +316,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
 
     # create dataset from file
     train_data = BallImageDataset(
-        data_path=DATA_PATH,
+        data_path=DATA_PATH / "data.zarr",
         horizon=cfg.pred_horizon,
         pad_before=cfg.obs_horizon-1,
         pad_after=cfg.action_horizon-1, 
@@ -372,7 +372,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
     trainer.setup(
         logger_lst=[
             TensorboardLogger(
-                ROOT / cfg.log_dir,
+                DATA_PATH / cfg.log_dir,
                 run_name=run_name
             ),
         ] if not cfg.is_debug else [],
