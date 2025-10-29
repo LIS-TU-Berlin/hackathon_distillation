@@ -189,7 +189,7 @@ class DdpmModel(nn.Module):
     def __init__(self, cfg: DictConfig):
         super().__init__()
         self.cfg = cfg
-        self.depth_encoder = None
+        self.rgb_encoder = None
         self._use_images = any(k.startswith("obs.img") for k in cfg.network.input_shapes)
 
         # Compute global_cond_dim
@@ -199,9 +199,9 @@ class DdpmModel(nn.Module):
             global_cond_dim += cfg.network.input_shapes["obs.state"][0]
 
         if self._use_images:
-            self.depth_encoder = DepthImageEncoder(feature_dim=cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
+            self.rgb_encoder = DepthImageEncoder(feature_dim=cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
             num_images = len([k for k in cfg.network.input_shapes if k.startswith("obs.img")])
-            global_cond_dim += self.depth_encoder.feature_dim * num_images
+            global_cond_dim += self.rgb_encoder.feature_dim * num_images
         self.global_cond_dim = global_cond_dim
 
         # Create the UNet model
@@ -218,7 +218,7 @@ class DdpmModel(nn.Module):
         global_cond = None
         if batch is not None:
             global_cond = prepare_global_conditioning(
-                self.depth_encoder,
+                self.rgb_encoder,
                 batch,
                 device=x.device,
                 use_images=self._use_images

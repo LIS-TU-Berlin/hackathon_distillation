@@ -153,6 +153,7 @@ if __name__ == "__main__":
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
     p.add_argument("--modelpth", type=str, default="/home/data/hackathon/ckpts/mlp/run_02/last.pt", help="Path to model")
+    # p.add_argument("--modelpth", type=str, default="/home/braun/hackathon_distillation/ckpts/ddpm_unet_test/last.pt", help="Path to model")
     p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot
     p.add_argument("--device_id", type=int, default=1, help="for cuda")  # Use this arg to run on the real robot
     args = p.parse_args()
