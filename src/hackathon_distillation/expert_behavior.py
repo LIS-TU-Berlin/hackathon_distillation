@@ -21,7 +21,7 @@ class ExpertBehavior:
         q += .2*np.random.randn(7)
         self.S.C.setJointState(q)
 
-        num_ctrl_points = 10 #reduce to make smoother
+        num_ctrl_points = 5 #reduce to make smoother
 
         points = .2 * np.random.randn(num_ctrl_points, 3)
         points += self.pos0

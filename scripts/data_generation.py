@@ -5,15 +5,15 @@ import time
 import robotic as ry
 
 ry.params_add({'DepthNoise/binocular_baseline': .01,
-  'DepthNoise/depth_smoothing': 1,
-  'DepthNoise/noise_all': .05,
-  'DepthNoise/noise_wide': 4.,
-  'DepthNoise/noise_local': .4,
-  'DepthNoise/noise_pixel': .04})
+  'DepthNoise/depth_smoothing': 1.,
+  'DepthNoise/noise_all': .025,
+  'DepthNoise/noise_wide': 0.5,
+  'DepthNoise/noise_local': 2.,
+  'DepthNoise/noise_pixel': .01})
 
 def data_generation(num_episodes=10):
     B = hack.ExpertBehavior()
-    h5 = hack.H5Writer('data.h5')
+    h5 = hack.H5Writer('/home/data/hackathon/new_data.h5')
     S = hack.Scene()
 
     manifest = { 'info': 'several episodes of ball following expert behavior',
@@ -59,7 +59,7 @@ def data_checker(file='data.h5'):
             time.sleep(.1)
 
 if __name__ == "__main__":
-    # data_generation(10)
+    data_generation(1)
     data_checker()
 
     # hack.DataHelper().push_to_HAL('data.h5')
