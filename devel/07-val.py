@@ -23,14 +23,11 @@ class Robot:
         self.args = args
         self.S = hack.Scene()
         self.q0 = self.S.C.getJointState()
+        self.ball_pos0 = self.S.ball.getPosition()
         self.bot = ry.BotOp(C=self.S.C, useRealRobot=self.args.real)
         self.modelpth = args.modelpth
         self.device_id = args.device_id
-
-        # FIFO queues to store obs history
-        self.ee_queue = deque(maxlen=args.maxhist)
-        self.depth_queue = deque(maxlen=args.maxhist)
-        self.rgb_queue = deque(maxlen=args.maxhist)
+        self.generate_ball_motion()
 
         # Load the model
         stats_file = Path(DATA_PATH / "data_stats.pt")
@@ -73,21 +70,25 @@ class Robot:
             rgb, depth = self.bot.getImageAndDepth('cameraWrist')
             D.update(rgb, depth)
 
+    def generate_ball_motion(self): 
+        num_ctrl_points = 5 #IMPORTANT: more control points make the ball move faster
+        points = np.array([.2, .2, .2]) * np.random.randn(num_ctrl_points, 3)
+        points[0] = 0.
+        points[-1] = 0.
+        points += self.ball_pos0
+        times = np.linspace(0., self.args.T_ep, num_ctrl_points)
+        self.spline = ry.BSpline()
+        self.spline.set(2, points, times)
+
     def validate(self):
         """
         Run predictions from model
         """        
 
-        # # Prime the queues so they are full from the start
-        # for _ in range(self.args.maxhist):
         if self.args.real:
             rgb, depth = self.bot.getImageAndDepth('cameraWrist')
         else:
             rgb, depth = self.S.get_rgb_and_depth()
-        #     ee = np.array(self.S.C.getFrame('l_gripper').getPosition())
-        #     self.depth_queue.append(depth.copy())
-        #     self.rgb_queue.append(rgb.copy())
-        #     self.ee_queue.append(ee.copy())
         #
         D = hack.DataPlayer(rgb, depth)
 
@@ -98,38 +99,17 @@ class Robot:
 
         t0 = self.bot.get_t()
 
-        while self.bot.get_t() - t0 < args.T_ep:
+        while self.bot.get_t() - t0 < self.args.T_ep:
+            t = self.bot.get_t()
+            ball_target_pos = self.spline.eval([t]). reshape(3)
+            ball_target_pos = np.clip(ball_target_pos, a_min=self.ball_pos0+[-.2,-.2,-.2], a_max=self.ball_pos0+[.2,.2,.2])
+            self.S.ball.setPosition(ball_target_pos) #for display only
 
-            # Inputs for model: rgb, depth
-
-            # Current
-            #rgb, depth = self.bot.getImageAndDepth('cameraWrist')
             if self.args.real:
                 rgb, depth = self.bot.getImageAndDepth('cameraWrist')
             else:
                 rgb, depth = self.S.get_rgb_and_depth()
             D.update(rgb, depth)
-            #ee_pos = self.S.C.getFrame('l_gripper').getPosition()
-
-            # # New batch
-            # if len(self._queues["action"]) == 0:
-            #     batch = {k: torch.stack(list(self._queues[k]), dim=1) for k in batch if k in (self.depth_queue, self.rgb_queue, self.ee_queue)}
-            #     # Get the target position from model
-            #     target_pos = self.predict(depth, ee_pos)
-            #
-            # depth_prev = self.depth_queue.popleft()
-            # rgb_prev = self.rgb_queue.popleft()
-            # ee_prev = self.ee_queue.popleft()
-            #
-            # # Insert current observations into the queues
-            # self.depth_queue.append(depth)
-            # self.rgb_queue.append(rgb)
-            # self.ee_queue.append(ee_pos)
-            #
-            # # Form the batch
-            # depth_batch = []
-            # for i in range(self.args.hist):
-            #     depth_batch.append
 
             # Prediction is wrt to wrist camera
             target_pos = self.predict(depth)
