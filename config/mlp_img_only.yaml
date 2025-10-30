@@ -3,8 +3,8 @@ defaults:
   - _self_
 
 # Data
-log_dir: "logs/mlp"
-ckpt_save_path: "ckpts"
+log_dir: "logs/mlp_img_only"
+ckpt_save_path: "ckpts/mlp_img_only"
 misc_save_path: "misc"
 
 # Training hyperparams
@@ -39,11 +39,9 @@ network:
   hidden_dims: [ 512, 1024, 2048 ]
   input_shapes: {
     "obs.img": [1, 360, 640],  # comment out for no images
-    "obs.state": [ 3 ],
   }
   input_normalization_modes: {
     "obs.img": "mean_std",
-    "obs.state": "min_max",
   }
   output_shapes: {
     "action": [ 3 ],  # Note we need feature dim first! Find out why and how this works; feature dim is ndof

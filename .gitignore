@@ -16,4 +16,5 @@ ckpts/
 
 devel/*.pt
 *.pt
+events.out.tfevents.*
 

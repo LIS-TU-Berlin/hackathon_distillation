@@ -14,12 +14,17 @@ def prepare_input(
     rgb_encoder: th.nn.Module,
     batch: dict[str, th.Tensor],
     device: th.device,
-    use_images: bool = False
+    use_images: bool = False, 
+    use_state: bool = True,
 ) -> th.Tensor:
     """Computes the conditioning from observations and timesteps."""
-    batch_size, n_obs_steps = batch["obs.state"].shape[:2]
-
-    features = [batch["obs.state"][:, :n_obs_steps].to(device)]
+    assert use_images or use_state, "At least one of use_images or use_state must be True."
+    if use_state:
+        batch_size, n_obs_steps = batch["obs.state"].shape[:2]
+        features = [batch["obs.state"][:, :n_obs_steps].to(device)]
+    else: 
+        batch_size, n_obs_steps = batch["obs.img"].shape[:2]
+        features = []
 
     if use_images:
         imgs = batch["obs.img"][:, :n_obs_steps]
@@ -122,12 +127,15 @@ class MlpModel(nn.Module):
 
         self.rgb_encoder = None
         self._use_images = any(k.startswith("obs.img") for k in config.network.input_shapes)
-
+        self._use_state = "obs.state" in config.network.input_shapes
+        
+        print(f"MlpModel: use_images = {self._use_images}, use_state = {self._use_state}")
+        
         # Compute input_dim
         input_dim = 0
         if self.cfg.obs_horizon > 0:
-            assert "obs.state" in self.cfg.network.input_shapes
-            input_dim += self.cfg.network.input_shapes["obs.state"][0]
+            if self._use_state:
+                input_dim += self.cfg.network.input_shapes["obs.state"][0]
 
         if self._use_images:
             self.rgb_encoder = DepthImageEncoder(feature_dim=self.cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
@@ -155,7 +163,8 @@ class MlpModel(nn.Module):
                 self.rgb_encoder,
                 batch,
                 device=self.device,
-                use_images=self._use_images
+                use_images=self._use_images,
+                use_state=self._use_state,
             )
         return self.network(input).view(-1, self.cfg.pred_horizon, self.cfg.network.output_shapes["action"][0])
     
