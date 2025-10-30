@@ -62,27 +62,36 @@ class Masker:
         return mask
 
     def blob(self, img:np.ndarray):
-        
-        # Setup SimpleBlobDetector parameters
-        params = cv2.SimpleBlobDetector_Params()
-        params.filterByCircularity = True
-        params.minCircularity = 0.6
-        params.filterByArea = True
-        params.minArea = 500
-        
-        # Create a detector with the parameters
-        detector = cv2.SimpleBlobDetector_create(params)
+            
+            # Setup SimpleBlobDetector parameters
+            params = cv2.SimpleBlobDetector_Params()
+            params.filterByCircularity = True
+            params.minCircularity = 0.4
+            params.filterByArea = True
+            params.minArea = 200
+            params.maxArea = 2e5
+            params.minThreshold = 1
+            params.maxThreshold = 150
+            params.thresholdStep = 10
+            params.filterByInertia = False
+            #params.filterByConvexity = False
 
-        keypoints = detector.detect(img)
+            
+            # Create a detector with the parameters
+            detector = cv2.SimpleBlobDetector_create(params)
 
-        mask = np.zeros_like(img, dtype=np.uint8)
+            keypoints = detector.detect(img)
 
-        for kp in keypoints:
-            x, y = int(kp.pt[0]), int(kp.pt[1])
-            r = int(kp.size / 2)
-            cv2.circle(mask, (x, y), r, (255, 255, 255), -1)
+            mask = np.zeros_like(img, dtype=np.uint8)
 
-        return mask
+            detected = False
+            for kp in keypoints:
+                detected = True
+                x, y = int(kp.pt[0]), int(kp.pt[1])
+                r = int(kp.size / 2)
+                cv2.circle(mask, (x, y), r, (255, 255, 255), -1)
+
+            return mask, detected
     
     def img_or(self, img1:np.ndarray, img2:np.ndarray):
         return cv2.bitwise_or(img1, img2)
