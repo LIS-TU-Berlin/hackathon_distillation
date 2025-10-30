@@ -21,9 +21,11 @@ class ExpertBehavior:
         # q += .2*np.random.randn(7) #IMPORTANT: initial random pose might make ball out of sight
         self.S.C.setJointState(q)
 
-        num_ctrl_points = 3 #IMPORTANT: more control points make the ball move faster
+        num_ctrl_points = 5 #IMPORTANT: more control points make the ball move faster
 
-        points = np.array([.2, .2, .1]) * np.random.randn(num_ctrl_points, 3)
+        points = np.array([.2, .2, .2]) * np.random.randn(num_ctrl_points, 3)
+        points[0] = 0.
+        points[-1] = 0.
         points += self.pos0
         times = np.linspace(0., self.T_episode, num_ctrl_points)
         self.spline = ry.BSpline()
@@ -61,7 +63,7 @@ class ExpertBehavior:
 
             t = bot.get_t()
             target_pos = self.spline.eval([t]). reshape(3)
-            target_pos = np.clip(target_pos, a_min=[-10., .1, .6], a_max=[10., 10., 10.])
+            target_pos = np.clip(target_pos, a_min=self.pos0+[-.2,-.2,-.2], a_max=self.pos0+[.2,.2,.2])
 
             self.S.ball.setPosition(target_pos) #for display only
 
@@ -103,7 +105,7 @@ class ExpertBehavior:
 
             # the simulated ball follows a random spline
             ball_pos = self.spline.eval([t]). reshape(3)
-            ball_pos = np.clip(ball_pos, a_min=[-.2, .3, .7], a_max=[.2, .8, 1.1]) ##IMPORTANT bb of ball movement
+            ball_pos = np.clip(ball_pos, a_min=self.pos0+[-.2,-.2,-.2], a_max=self.pos0+[.2,.2,.2]) ##IMPORTANT bb of ball movement
 
             # the 'ball' frame is set to this position, y is the position relative to cameraWrist
             self.S.ball.setPosition(ball_pos)

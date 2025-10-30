@@ -12,7 +12,8 @@ ry.params_add({'DepthNoise/binocular_baseline': .05,
 def mini_demo():
     S = hack.Scene()
     rgb, depth = S.get_rgb_and_depth()
-    S.plot_rgb_and_depth(rgb, depth)
+    # S.plot_rgb_and_depth(rgb, depth)
+    S.C.view(True)
 
 def store_h5():
     h5 = hack.H5Writer('data_test01.h5')
@@ -53,6 +54,7 @@ def howto_load_from_file():
         plt.pause(.2)
 
 if __name__ == "__main__":
-    store_h5()
-    print_file_info()
-    howto_load_from_file()
+    mini_demo()
+    # store_h5()
+    # print_file_info()
+    # howto_load_from_file()

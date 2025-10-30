@@ -59,7 +59,7 @@ def data_checker(file='data.h5'):
             time.sleep(.1)
 
 if __name__ == "__main__":
-    data_generation(file='new_data.h5', num_episodes=10)
+    data_generation(file='new_data.h5', num_episodes=2)
     data_checker(file='new_data.h5')
 
     # hack.DataHelper().push_to_HAL('data.h5')
