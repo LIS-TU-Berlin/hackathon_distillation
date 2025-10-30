@@ -124,12 +124,13 @@ class DaMlpModel(nn.Module):
     def forward(self, batch: dict[str, th.Tensor]) -> th.Tensor:
         input = None
         if batch is not None:
-            batch_size, n_obs_steps = batch["obs.state"].shape[:2]
             features = []
             if self._use_state:
+                batch_size, n_obs_steps = batch["obs.state"].shape[:2]
                 features.append(batch["obs.state"][:, :n_obs_steps].to(self.device))
 
             if self._use_images:
+                batch_size, n_obs_steps = batch["obs.img"].shape[:2]
                 imgs = batch["obs.img"][:, :n_obs_steps]
                 img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...").to(self.device, non_blocking=True)
                 depth = self.depth_anything(img_inputs)[:, None]  # add depth shape
