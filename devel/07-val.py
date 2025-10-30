@@ -36,10 +36,13 @@ class Robot:
         stats_file = Path(DATA_PATH / "data_stats.pt")
         self.policy = Policy(Path(self.modelpth), stats_file, map_location=f"cpu")  # todo: fix for cpu
 
-    def IK(self, target_pos):
+    def IK(self, camera_relative_ball_pos):
+        self.S.ref_target.setRelativePosition(camera_relative_ball_pos)
+        ball_pos = self.S.ref_target.getPosition()
+
         komo = ry.KOMO(self.S.C, 1, 1, 0, False)
         komo.addControlObjective([], 0, 1e-1)
-        komo.addObjective([], ry.FS.position, ['ref'], ry.OT.sos, [1e2], target_pos)
+        komo.addObjective([], ry.FS.position, ['ref'], ry.OT.sos, [1e2], ball_pos)
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
         komo.addObjective([], ry.FS.negDistance, ["l_panda_coll3", "wall"], ry.OT.ineq)
@@ -53,8 +56,8 @@ class Robot:
 
         return [komo.getPath()[0], ret]
     
-    def predict(self, depth:np.ndarray, ee_pos:np.ndarray):
-        batch = {"obs.img": torch.Tensor(depth)[None], "obs.state": torch.Tensor(ee_pos)[None]}
+    def predict(self, depth:np.ndarray):
+        batch = {"obs.img": torch.Tensor(depth)[None]}
         actions = self.policy.select_action(batch)
         return actions
     
@@ -106,7 +109,7 @@ class Robot:
             else:
                 rgb, depth = self.S.get_rgb_and_depth()
             D.update(rgb, depth)
-            ee_pos = self.S.C.getFrame('l_gripper').getPosition()
+            #ee_pos = self.S.C.getFrame('l_gripper').getPosition()
 
             # # New batch
             # if len(self._queues["action"]) == 0:
@@ -128,7 +131,8 @@ class Robot:
             # for i in range(self.args.hist):
             #     depth_batch.append
 
-            target_pos = self.predict(depth, ee_pos)
+            # Prediction is wrt to wrist camera
+            target_pos = self.predict(depth)
             q_target, ret = self.IK(target_pos)
             if ret.feasible:
                 self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
