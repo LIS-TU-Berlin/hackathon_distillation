@@ -45,8 +45,8 @@ class ExpertBehavior:
         komo.addObjective([], ry.FS.negDistance, ["l_panda_coll3", "wall"], ry.OT.ineq)
 
         # Try to keep the ball in view
-        komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "table"], ry.OT.eq, [-1.0])
-        komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "ball"], ry.OT.eq, [-1.0])
+        #komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "table"], ry.OT.eq, [-1.0])
+        #komo.addObjective([], ry.FS.scalarProductXX, ["cameraWrist", "ball"], ry.OT.eq, [-1.0])
 
         sol = ry.NLP_Solver(komo.nlp(), verbose=0)
         sol.setOptions(stopInners=10, damping=1e-4) ##very low cost
