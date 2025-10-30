@@ -18,6 +18,13 @@ def blob(img:np.ndarray):
         params.minCircularity = 0.4
         params.filterByArea = True
         params.minArea = 400
+        params.maxArea = 2e5
+        params.minThreshold = 1
+        params.maxThreshold = 150
+        params.thresholdStep = 10
+        params.filterByInertia = False
+        #params.filterByConvexity = False
+
         
         # Create a detector with the parameters
         detector = cv2.SimpleBlobDetector_create(params)
@@ -36,20 +43,55 @@ def blob(img:np.ndarray):
 if __name__ == "__main__":
     
     # Path to folder with rgb images
-    img_path = "/home/sayantan/Downloads/imgs/output/"
+    # img_path = "/home/sayantan/Downloads/imgs/output/"
 
-    pngs = sorted(Path(img_path).glob("*.png"))
-    if not pngs:
-        print(f"No PNG files found in {img_path}")
-        img = None
-    else:
-        for png in pngs:
-            img = cv2.imread(str(png), cv2.IMREAD_COLOR)
-            if img is None:
-                print(f"Failed to load image: {img_path}")
-            else:
-                mask = blob(img)
-                cv2.imshow(f"{png}: image", img)
-                cv2.imshow(f"{png}:mask", mask)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+    # pngs = sorted(Path(img_path).glob("*.png"))
+    # if not pngs:
+    #     print(f"No PNG files found in {img_path}")
+    #     img = None
+    # else:
+    #     for png in pngs:
+    #         img = cv2.imread(str(png), cv2.IMREAD_COLOR)
+    #         if img is None:
+    #             print(f"Failed to load image: {img_path}")
+    #         else:
+    #             mask = blob(img)
+    #             cv2.imshow(f"{png}: image", img)
+    #             cv2.imshow(f"{png}:mask", mask)
+    #             cv2.waitKey(0)
+    #             cv2.destroyAllWindows()
+
+    # open webcam (0 = default camera)
+    cap = cv2.VideoCapture(4)
+    if not cap.isOpened():
+        raise RuntimeError("Could not open webcam (index 0)")
+
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # detect blobs on grayscale image
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # increase contrast using CLAHE (adaptive histogram equalization)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            gray = clahe.apply(gray)
+
+            #gray = cv2.medianBlur(gray, 5)
+            mask = blob(gray)  # mask is single-channel uint8
+
+            # create overlay: paint blob area red and blend with original
+            overlay = frame.copy()
+            overlay[mask > 0] = (0, 0, 255)  # BGR red
+            out = cv2.addWeighted(overlay, 0.5, frame, 0.5, 0)
+
+            # show results
+            cv2.imshow("Webcam - blobs (press 'q' to quit)", out)
+            cv2.imshow("Blob mask", mask)
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
