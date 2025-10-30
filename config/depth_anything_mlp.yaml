@@ -6,9 +6,10 @@ defaults:
 log_dir: "logs/mlp"
 ckpt_save_path: "ckpts"
 misc_save_path: "misc"
+run_name: "depth_anything_mlp"
 
 # Training hyperparams
-is_debug: true
+is_debug: false
 epochs: 200
 batch_size: 32   # this is per device if ddp is used
 grad_clip_norm: 10.
@@ -25,11 +26,11 @@ save_max: 3
 #n_obs_steps: 1    # Use 0 for unconditional generation -- not used during training
 #horizon: 128  # prediction horizon -- what the actual model predicts
 obs_horizon: 2
-pred_horizon: 4
-action_horizon: 2
+pred_horizon: 2
+action_horizon: 1
 
 # Policy options
-model_type: hackathon_distillation.policy.mlp_wrapper.MlpWrapper
+model_type: hackathon_distillation.policy.mlp_wrapper.DepthMlpWrapper
 do_mask_loss_for_padding: false
 
 # Network
@@ -39,7 +40,7 @@ network:
   hidden_dims: [ 512, 1024, 2048 ]
   input_shapes: {
     "obs.img": [1, 360, 640],  # comment out for no images
-    #"obs.state": [ 3 ],
+    # "obs.state": [ 3 ],
   }
   input_normalization_modes: {
     "obs.img": "mean_std",
@@ -57,7 +58,7 @@ network:
   vision_backbone: resnet18
   crop_shape: [ 84, 84 ]
   crop_is_random: True
-  spatial_softmax_num_keypoints: 256
+  spatial_softmax_num_keypoints: 128  # latent dim for mlp
   use_layer_norm: True
 
   # MLP.

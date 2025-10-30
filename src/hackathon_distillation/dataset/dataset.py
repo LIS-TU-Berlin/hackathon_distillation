@@ -2,9 +2,9 @@ from typing import Dict
 import torch
 import numpy as np
 import copy
-from hackathon_distillation.data_loader.pytorch_util import dict_apply
-from hackathon_distillation.data_loader.replay_buffer import ReplayBuffer
-from hackathon_distillation.data_loader.sampler import SequenceSampler, get_val_mask, downsample_mask
+from hackathon_distillation.dataset.pytorch_util import dict_apply
+from hackathon_distillation.dataset.replay_buffer import ReplayBuffer
+from hackathon_distillation.dataset.sampler import SequenceSampler, get_val_mask, downsample_mask
 from hackathon_distillation.networks.base_models import Normalizer
 
 
@@ -98,7 +98,7 @@ class BallImageDataset(BaseImageDataset):
         data = {
             'obs.img': sample['depth'][:self.obs_horizon, None], # T, 1, 360, 640
             'obs.state': sample['ee_pos'][:self.obs_horizon], # T, 3
-            #'obs.img': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
+            # 'obs.img': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
             'action': sample['ee_action'] # T, 3
         }
         return data

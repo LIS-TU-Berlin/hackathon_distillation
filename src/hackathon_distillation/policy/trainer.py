@@ -24,11 +24,11 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torchinfo import summary
 from tqdm.auto import tqdm
 
-from hackathon_distillation.data_loader.compute_stats import compute_dataset_stats_welford
+from hackathon_distillation.dataset.compute_stats import compute_dataset_stats_welford
 from hackathon_distillation.policy.ModelWrapperABC import TrainStrategy, ModelWrapper
 from hackathon_distillation.policy.logger import LoggerCollection, TensorboardLogger
 from hackathon_distillation.utils.utils_cornelius import set_global_seed, to_list, to_tensor, lists_to_tensors
-from hackathon_distillation.data_loader.dataset import BallImageDataset
+from hackathon_distillation.dataset.dataset import BallImageDataset
 
 ROOT = pathlib.Path(os.environ["REPO_PATH"])
 CODEBASE_VERSION = os.environ.get("CODEBASE_VERSION")
@@ -316,7 +316,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
 
     # create dataset from file
     train_data = BallImageDataset(
-        data_path=DATA_PATH / "data.zarr",
+        data_path=DATA_PATH / "new_data.zarr",
         # data_path=DATA_PATH / "test_data.zarr",
         horizon=cfg.pred_horizon,
         pad_before=cfg.obs_horizon-1,
@@ -324,7 +324,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         val_ratio=0.2,
     )
     val_data = train_data.get_validation_dataset()
-    stats_file = DATA_PATH / "data_stats.pt"
+    stats_file = DATA_PATH / "new_data_stats.pt"
     if stats_file.exists():
         with stats_file.open("r") as f:
             data_stats = th.load(stats_file)

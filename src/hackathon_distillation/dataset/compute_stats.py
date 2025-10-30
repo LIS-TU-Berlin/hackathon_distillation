@@ -1,7 +1,7 @@
 import math
 from typing import Dict, Tuple
 import torch
-from hackathon_distillation.data_loader.dataset import BaseImageDataset
+from hackathon_distillation.dataset.dataset import BaseImageDataset
 
 
 class _WelfordAcc:

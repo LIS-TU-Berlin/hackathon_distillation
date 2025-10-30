@@ -7,13 +7,14 @@ from torch import nn
 from typing import Optional
 from omegaconf import DictConfig
 
+from hackathon_distillation.networks.ddpm_rgb_encoder import RgbEncoder
 from hackathon_distillation.policy.ModelWrapperABC import ModelWrapper
 from hackathon_distillation.policy.utils.normalize import Normalize, Unnormalize
 from hackathon_distillation.networks.depth_encoder import DepthImageEncoder
 
 
 def prepare_global_conditioning(
-    depth_encoder: th.nn.Module,
+    rgb_encoder: th.nn.Module,
     batch: dict[str, th.Tensor],
     device: th.device,
     use_images: bool = False
@@ -25,7 +26,8 @@ def prepare_global_conditioning(
     if use_images:
         imgs = batch["obs.img"][:, :n_obs_steps]
         img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...")
-        img_features = depth_encoder(img_inputs.to(device, non_blocking=True))
+        print(img_inputs.shape)
+        img_features = rgb_encoder(img_inputs.to(device, non_blocking=True))
         img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)
         global_cond_feats.append(img_features)
 
@@ -164,7 +166,7 @@ class DdpmWrapper(ModelWrapper):
         """Return list of optimizers and list of schedulers."""
         decay_params, no_decay_params = self.model.network.configure_parameters()
         if self.model._use_images:
-            decay_params += list(self.model.depth_encoder.parameters())
+            decay_params += list(self.model.rgb_encoder.parameters())
         optim_groups = [
             {
                 "params": decay_params,
@@ -199,7 +201,8 @@ class DdpmModel(nn.Module):
             global_cond_dim += cfg.network.input_shapes["obs.state"][0]
 
         if self._use_images:
-            self.rgb_encoder = DepthImageEncoder(feature_dim=cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
+            # self.rgb_encoder = DepthImageEncoder(feature_dim=cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
+            self.rgb_encoder = RgbEncoder(cfg.network)
             num_images = len([k for k in cfg.network.input_shapes if k.startswith("obs.img")])
             global_cond_dim += self.rgb_encoder.feature_dim * num_images
         self.global_cond_dim = global_cond_dim
@@ -228,3 +231,10 @@ class DdpmModel(nn.Module):
     @property
     def device(self):
         return next(self.parameters()).device
+
+
+# if __name__ == "__main__":
+#     import torch
+#
+#     img = torch.randn((64, 2, 3, 340, 360))
+#     model = DdpmModel()

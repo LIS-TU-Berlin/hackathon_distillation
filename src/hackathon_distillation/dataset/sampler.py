@@ -1,7 +1,7 @@
 from typing import Optional
 import numpy as np
 import numba
-from hackathon_distillation.data_loader.replay_buffer import ReplayBuffer
+from hackathon_distillation.dataset.replay_buffer import ReplayBuffer
 
 
 @numba.jit(nopython=True)

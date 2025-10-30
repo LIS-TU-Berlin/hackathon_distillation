@@ -26,6 +26,7 @@ dependencies = [
     "torchinfo>=1.8.0",
     "torchvision>=0.24.0",
     "tqdm>=4.67.1",
+    "transformers>=4.57.1",
     "ultralytics>=8.3.222",
     "zarr>=2.18.3",
 ]

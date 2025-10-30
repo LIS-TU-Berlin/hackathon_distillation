@@ -6,8 +6,8 @@ defaults:
 log_dir: "logs"
 ckpt_save_path: "ckpts"
 misc_save_path: "misc"
-is_debug: true
-#run_name: "ddpm_unet_test"
+is_debug: false
+run_name: "ddpm_unet_rgb"
 
 # Training hyperparams
 epochs: 200
@@ -41,7 +41,7 @@ network:
   dropout: 0.
   down_dims: [ 512, 1024, 2048 ]
   input_shapes: {
-    "obs.img": [1, 360, 640],  # comment out for no images
+    "obs.img": [3, 360, 640],  # comment out for no images
     "obs.state": [ 3 ],
   }
   input_normalization_modes: {
@@ -54,8 +54,8 @@ network:
   output_normalization_modes: {
     "action": "min_max",
   }
-  pretrained_backbone_weights: null #'DEFAULT'    # comment out for no pretrained backbone
-  use_group_norm: True
+  pretrained_backbone_weights: 'DEFAULT'    # comment out for no pretrained backbone
+  use_group_norm: False
   n_groups: 8
   vision_backbone: resnet18
   crop_shape: [ 84, 84 ]
