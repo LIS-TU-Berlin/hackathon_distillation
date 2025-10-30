@@ -18,10 +18,10 @@ class ExpertBehavior:
 
     def reset(self):
         q = self.q0.copy()
-        q += .2*np.random.randn(7)
+        # q += .2*np.random.randn(7) #IMPORTANT: initial random pose might make ball out of sight
         self.S.C.setJointState(q)
 
-        num_ctrl_points = 5 #reduce to make smoother
+        num_ctrl_points = 3 #IMPORTANT: more control points make the ball move faster
 
         points = np.array([.2, .2, .1]) * np.random.randn(num_ctrl_points, 3)
         points += self.pos0
@@ -29,10 +29,13 @@ class ExpertBehavior:
         self.spline = ry.BSpline()
         self.spline.set(2, points, times)
 
-    def IK(self, target_pos):
+    def IK(self, camera_relative_ball_pos):
+        self.S.ref_target.setRelativePosition(camera_relative_ball_pos)
+        ball_pos = self.S.ref_target.getPosition()
+
         komo = ry.KOMO(self.S.C, 1, 1, 0, False)
         komo.addControlObjective([], 0, 1e-1)
-        komo.addObjective([], ry.FS.position, ['ref'], ry.OT.sos, [1e2], target_pos)
+        komo.addObjective([], ry.FS.position, ['ref'], ry.OT.sos, [1e2], ball_pos)
 
         # Collisions and joint limits
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
@@ -98,11 +101,16 @@ class ExpertBehavior:
                 self.S.C.view(False, f'time: {t}')
                 time.sleep(self.tau_step)
 
-            target_pos = self.spline.eval([t]). reshape(3)
-            target_pos = np.clip(target_pos, a_min=[-10., .1, .6], a_max=[10., 10., 10.])
-            self.S.ball.setPosition(target_pos) #for display only
+            # the simulated ball follows a random spline
+            ball_pos = self.spline.eval([t]). reshape(3)
+            ball_pos = np.clip(ball_pos, a_min=[-.2, .3, .7], a_max=[.2, .8, 1.1]) ##IMPORTANT bb of ball movement
 
-            action = target_pos
+            # the 'ball' frame is set to this position, y is the position relative to cameraWrist
+            self.S.ball.setPosition(ball_pos)
+            y, J = self.S.C.eval(ry.FS.positionRel, ['ball', 'cameraWrist'])
+
+            # the action is the camera_relative_ball_position
+            action = y
 
             if h5 is not None:
                 data_ee_action[step] = action
@@ -112,7 +120,7 @@ class ExpertBehavior:
 
             q_target, ret = self.IK(action)
             if ret.feasible:
-                sim.setSplineRef(q_target, [.1], False)
+                sim.setSplineRef(q_target, [.1], False) ##IMPORTANT: the .1 is the aggressiveness of the simulated behavior
         print('=== done')
 
         if h5 is not None:

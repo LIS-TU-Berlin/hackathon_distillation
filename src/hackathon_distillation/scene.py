@@ -16,6 +16,8 @@ class Scene:
         self.ref = self.C.addFrame('ref', 'l_gripper')
         self.ref.setRelativePosition([0,0,-.2]) .setShape(ry.ST.marker, [.2])
 
+        self.ref_target = self.C.addFrame('ref_target', 'cameraWrist')
+
         self.camview = ry.CameraView(self.C)
         self.camview.setCamera(self.C.getFrame('cameraWrist'))
 

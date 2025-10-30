@@ -113,15 +113,15 @@ class Robot:
         
         # Load h5 data
         reader = hack.H5Reader(self.args.data)
-        rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+        #rgb, depth = self.bot.getImageAndDepth('cameraWrist')
         
-        D = hack.DataPlayer(rgb, depth)
-
         for i, episode in enumerate(reader.fil.keys()):
 
             print(f"Testing episode {episode}")
             rgb = reader.read(f"{episode}/rgb")
             depth = reader.read(f"{episode}/depth")
+
+            D = hack.DataPlayer(rgb[0], depth[0])
 
             for i in range(rgb.shape[0]):
                 D.update(rgb[i], depth[i])
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     p.add_argument("--ep", type=int, default=1, help="Number of episodes to replay")
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
-    p.add_argument("--data", type=str, default="", help="Path to h5 file")
+    p.add_argument("--data", type=str, default="new_data.h5", help="Path to h5 file")
     p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot 
     args = p.parse_args()
 

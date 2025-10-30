@@ -4,16 +4,16 @@ import hackathon_distillation as hack
 import time
 import robotic as ry
 
-ry.params_add({'DepthNoise/binocular_baseline': .01,
-  'DepthNoise/depth_smoothing': 1.,
-  'DepthNoise/noise_all': .025,
+ry.params_add({'DepthNoise/binocular_baseline': .00, #zero -> (almost no shadows)
+  'DepthNoise/depth_smoothing': 1, # zero -> no smoothed edges (for zero baseline also no shadows at all)
+  'DepthNoise/noise_all': .0, # zero -> no noise
   'DepthNoise/noise_wide': 0.5,
   'DepthNoise/noise_local': 2.,
   'DepthNoise/noise_pixel': .01})
 
-def data_generation(num_episodes=10):
+def data_generation(file='new_data.h5', num_episodes=10):
     B = hack.ExpertBehavior()
-    h5 = hack.H5Writer('/home/data/hackathon/new_data.h5')
+    h5 = hack.H5Writer(file)
     S = hack.Scene()
 
     manifest = { 'info': 'several episodes of ball following expert behavior',
@@ -59,8 +59,8 @@ def data_checker(file='data.h5'):
             time.sleep(.1)
 
 if __name__ == "__main__":
-    data_generation(1)
-    data_checker()
+    data_generation(file='new_data.h5', num_episodes=10)
+    data_checker(file='new_data.h5')
 
     # hack.DataHelper().push_to_HAL('data.h5')
     # hack.DataHelper().pull_from_HAL('data.h5')
