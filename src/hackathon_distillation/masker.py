@@ -18,8 +18,8 @@ class Masker:
         bot:ry.BotOp=None
         ):
         self.bot = bot
-        self.detect_model = YOLO(detect_model_pth)
-        self.segment_model = FastSAM(segment_model_pth)
+        self.detect_model = None # YOLO(detect_model_pth)
+        self.segment_model = None # FastSAM(segment_model_pth)
 
     def IK(self, target_pos):
         komo = ry.KOMO(self.S.C, 1, 1, 0, False)
