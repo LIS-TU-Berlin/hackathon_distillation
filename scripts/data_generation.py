@@ -4,12 +4,21 @@ import hackathon_distillation as hack
 import time
 import robotic as ry
 
-ry.params_add({'DepthNoise/binocular_baseline': .00, #zero -> (almost no shadows)
+default_noise_setting = {'DepthNoise/binocular_baseline': .03, #zero -> (almost no shadows)
   'DepthNoise/depth_smoothing': 1, # zero -> no smoothed edges (for zero baseline also no shadows at all)
-  'DepthNoise/noise_all': .0, # zero -> no noise
-  'DepthNoise/noise_wide': 0.5,
-  'DepthNoise/noise_local': 2.,
-  'DepthNoise/noise_pixel': .01})
+  'DepthNoise/noise_all': .02, # zero -> no noise
+  'DepthNoise/noise_wide': 4.,
+  'DepthNoise/noise_local': .4,
+  'DepthNoise/noise_pixel': .04}
+
+my_noise_setting = {'DepthNoise/binocular_baseline': .01, #zero -> (almost no shadows)
+  'DepthNoise/depth_smoothing': 0, # zero -> no smoothed edges (for zero baseline also no shadows at all)
+  'DepthNoise/noise_all': .05, # zero -> no noise
+  'DepthNoise/noise_wide': 1.,
+  'DepthNoise/noise_local': .4,
+  'DepthNoise/noise_pixel': .04}
+
+ry.params_add(my_noise_setting)
 
 def data_generation(file='new_data.h5', num_episodes=10):
     B = hack.ExpertBehavior()
@@ -59,8 +68,8 @@ def data_checker(file='data.h5'):
             time.sleep(.1)
 
 if __name__ == "__main__":
-    data_generation(file='new_data.h5', num_episodes=2)
-    data_checker(file='new_data.h5')
+    data_generation(file='test_data.h5', num_episodes=100)
+    # data_checker(file='test_data.h5')
 
     # hack.DataHelper().push_to_HAL('data.h5')
     # hack.DataHelper().pull_from_HAL('data.h5')
