@@ -42,6 +42,8 @@ class Masker:
         """
         
         """
+        raise NotImplementedError("Segmentation model is not available!")
+ 
         results = self.segment_model([img])
 
         masks = []
