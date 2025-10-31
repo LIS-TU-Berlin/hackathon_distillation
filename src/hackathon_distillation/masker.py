@@ -66,7 +66,7 @@ class Masker:
             # Setup SimpleBlobDetector parameters
             params = cv2.SimpleBlobDetector_Params()
             params.filterByCircularity = True
-            params.minCircularity = 0.4
+            params.minCircularity = 0.6
             params.filterByArea = True
             params.minArea = 200
             params.maxArea = 2e5

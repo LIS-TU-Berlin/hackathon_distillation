@@ -50,7 +50,7 @@ class Robot:
         return [komo.getPath()[0], ret]
 
     def generate_ball_motion(self): 
-        num_ctrl_points = 5 #IMPORTANT: more control points make the ball move faster
+        num_ctrl_points = 3 #IMPORTANT: more control points make the ball move faster
         points = np.array([.2, .2, .2]) * np.random.randn(num_ctrl_points, 3)
         points[0] = 0.
         points[-1] = 0.
@@ -95,22 +95,19 @@ class Robot:
             print(ball_centroid)
 
             camera_relative_ball_pos = ball_centroid.copy()
+        else:
+            print("Not detected")
 
         return camera_relative_ball_pos, mask
     
-    def main(self):
-
-        if self.args.real:
-            rgb, depth = self.bot.getImageAndDepth('cameraWrist')
-        else:
-            rgb, depth = self.S.get_rgb_and_depth()
-
-        D = hack.DataPlayer(rgb, depth)
+    def main_sim(self):
 
         # Initialize motion
-        self.bot.moveTo(self.q0)
-        self.bot.wait(self.S.C, forKeyPressed=False, forTimeToEnd=True)
+        self.bot.home(self.S.C)
         self.bot.sync(self.S.C, .1)
+
+        rgb, depth = self.S.get_rgb_and_depth()
+        D = hack.DataPlayer(rgb, depth)
 
         t0 = self.bot.get_t()
 
@@ -122,19 +119,14 @@ class Robot:
             ball_target_pos = np.clip(ball_target_pos, a_min=self.ball_pos0+[-.2,-.2,-.2], a_max=self.ball_pos0+[.2,.2,.2])
             self.S.ball.setPosition(ball_target_pos) #for display only
 
-            if self.args.real:
-                rgb, depth = self.bot.getImageAndDepth('cameraWrist')
-            else:
-                rgb, depth = self.S.get_rgb_and_depth()
+            rgb, depth = self.S.get_rgb_and_depth()
 
             # Prediction is wrt to wrist camera
-            #target_pos = np.array([0.2,0.2,0.2])
             target_pos, mask = self.predict(rgb, depth)
+            D.update(rgb, mask)
 
             if target_pos is not None:
                 q_target, ret = self.IK(target_pos)
-
-                D.update(rgb, mask)       
 
                 if ret.feasible:
                     self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
@@ -154,14 +146,66 @@ class Robot:
                 break
 
 
+    def main_real(self):
+
+        # Initialize motion
+        self.bot.home(self.S.C)
+        self.bot.sync(self.S.C, .1)
+
+        rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+        target_pos, mask = self.predict(rgb, depth)
+
+        D = hack.DataPlayer(rgb, depth)
+
+        t0 = self.bot.get_t()
+
+        while self.bot.get_t() - t0 < self.args.T_ep:
+
+            t = self.bot.get_t()       
+
+            rgb, depth = self.bot.getImageAndDepth('cameraWrist')
+
+            # Prediction is wrt to wrist camera
+            target_pos, mask = self.predict(rgb, depth)
+
+            D.update(rgb, mask)       
+
+            if target_pos is not None:
+                q_target, ret = self.IK(target_pos)
+
+                if ret.feasible:
+                    self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
+                    pass
+                else:
+                    print("Not feasible!")
+                    return
+
+                self.bot.sync(self.S.C, .1)
+            
+                time.sleep(self.args.sleep)
+            else:
+                time.sleep(self.args.sleep)
+
+            key = self.bot.sync(self.S.C, .1)
+            if key==ord('q'):
+                del self.bot
+                break
+
+        del self.bot
+
+
 if __name__ == "__main__":
 
     p = argparse.ArgumentParser()
     p.add_argument("--T_ep", type=int, default=10, help="Time to move")
-    p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
+    p.add_argument("--tc", type=float, default=0.5, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.1, help="Sleep time")
     p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot 
     args = p.parse_args()
 
-    Robot(args).main()
+    if args.real:
+        Robot(args).main_real()
+    else:
+        Robot(args).main_sim()
+
 
