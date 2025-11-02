@@ -29,22 +29,25 @@ class BaseImageDataset(torch.utils.data.Dataset):
 
 class BallImageDataset(BaseImageDataset):
     def __init__(self,
-            data_path: str, 
+            data_path: str,
+            keys: tuple = ('depth', 'ee_pos', 'ee_action', 'rgb'),
             horizon=1,
             pad_before=0,
             pad_after=0,
             seed=42,
             val_ratio=0.0,
-            max_train_episodes=None
-            ):
+            max_train_episodes=None,
+            image_transforms=None
+        ):
         
         super().__init__()
         self.obs_horizon = pad_before + 1
         self.action_horizon = pad_after + 1
+        self.image_transforms = image_transforms
 
         print("Loading dataset from:", data_path)
         self.replay_buffer = ReplayBuffer.copy_from_path(
-            data_path, keys=['depth', 'ee_pos', 'ee_action', 'rgb'])
+            data_path, keys=keys)
         val_mask = get_val_mask(
             n_episodes=self.replay_buffer.n_episodes, 
             val_ratio=val_ratio,
@@ -94,11 +97,17 @@ class BallImageDataset(BaseImageDataset):
 
     def _sample_to_data(self, sample):
         rgb = sample['rgb']  # T, 360, 640, 3
-        rgb_transposed = np.moveaxis(rgb, -1,1)  # T, 3, 360, 640
+        rgb_transposed = np.moveaxis(rgb, -1,1)[:self.obs_horizon]  # T, 3, 360, 640
+        depth = sample['depth'][:self.obs_horizon, None]
+        mask = sample['mask'][:self.obs_horizon, None]
+        if self.image_transforms is not None:
+            depth = self.image_transforms(depth)
+            rgb_transposed = self.image_transforms(depth)
         data = {
-            'obs.img': sample['depth'][:self.obs_horizon, None], # T, 1, 360, 640
+            'obs.depth': depth, # T, 1, 360, 640
             'obs.state': sample['ee_pos'][:self.obs_horizon], # T, 3
-            # 'obs.img': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
+            'obs.img': rgb_transposed[:self.obs_horizon], # T, 3, 360, 640
+            'obs.mask': mask,
             'action': sample['ee_action'] # T, 3
         }
         return data

@@ -676,16 +676,16 @@ class ReplayBuffer:
 
 if __name__ == "__main__":
     from hackathon_distillation.h5_helper import H5Reader
-    h5_path = "/home/data/hackathon/data.h5"
+    h5_path = "/home/data/hackathon/mask_data.h5"
     h5 = H5Reader(h5_path)
 
     # to build a zarr dataset on disk:
     rb = h5_to_replaybuffer(
         h5_reader=h5,
-        keys=('depth','ee_pos','ee_action', 'rgb'),
-        zarr_out_path="/home/data/hackathon/test_data.zarr",
+        keys=('depth','ee_pos','ee_action', 'rgb', 'mask'),
+        zarr_out_path="/home/data/hackathon/mask_data.zarr",
         compressor='disk',  # better for on-disk storage
-        num_episodes=10
+        num_episodes=150
     )
 
     # quick access examples:

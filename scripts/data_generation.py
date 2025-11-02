@@ -51,6 +51,7 @@ def data_checker(file='data.h5'):
         q = h5.read(f'epi{i:04}/q')
         rgb = h5.read(f'epi{i:04}/rgb')
         depth = h5.read(f'epi{i:04}/depth')
+        mask = h5.read(f'epi{i:04}/mask')
 
         D = hack.DataPlayer(rgb[0], depth[0])
         for t in range(rgb.shape[0]):
@@ -68,7 +69,7 @@ def data_checker(file='data.h5'):
             time.sleep(.1)
 
 if __name__ == "__main__":
-    data_generation(file='test_data.h5', num_episodes=100)
+    data_generation(file='test_ep.h5', num_episodes=1)
     # data_checker(file='test_data.h5')
 
     # hack.DataHelper().push_to_HAL('data.h5')

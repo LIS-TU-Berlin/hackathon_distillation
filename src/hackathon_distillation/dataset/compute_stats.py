@@ -82,9 +82,14 @@ def compute_dataset_stats_welford(dataset: BaseImageDataset, chunk_size: int = 8
     assert hasattr(dataset, "replay_buffer"), "Dataset must expose a replay_buffer"
 
     rb = dataset.replay_buffer
+
+    print(rb.keys())
+
     # Map output keys to replay buffer keys
     key_map = {
-        "obs.img": "depth",
+        "obs.img": "rgb",
+        "obs.depth": "depth",
+        "obs.mask": "mask",
         "obs.state": "ee_pos",
         "action": "ee_action",
     }
@@ -111,7 +116,7 @@ def compute_dataset_stats_welford(dataset: BaseImageDataset, chunk_size: int = 8
     for out_key, rb_key in key_map.items():
         data = rb[rb_key]
         N = data.shape[0]
-        is_image = (out_key == "obs.img")
+        is_image = (out_key in ("obs.img", "obs.depth", "obs.mask"))
 
         start = 0
         while start < N:

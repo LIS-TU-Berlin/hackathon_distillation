@@ -18,7 +18,7 @@ DATA_PATH = Path(os.environ["DATA_PATH"])
 config_path = str(REPO_PATH / "config")
 
 
-@hydra.main(config_path=config_path, config_name="depth_ddpm", version_base=None)
+@hydra.main(config_path=config_path, config_name="mlp", version_base=None)
 def train_cli(cfg: DictConfig) -> None:
     os.environ['CUDA_VISIBLE_DEVICES'] = ",".join([str(d) for d in cfg.devices])
 

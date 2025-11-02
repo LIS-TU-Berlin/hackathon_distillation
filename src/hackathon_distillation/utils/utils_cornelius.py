@@ -2,6 +2,9 @@ import collections
 import random
 import torch
 import numpy as np
+from omegaconf import DictConfig
+
+from hackathon_distillation.utils.transforms import get_image_transforms
 
 
 def get_attribute_ddp(model: torch.nn.Module | torch.nn.parallel.DistributedDataParallel, attribute: str):
@@ -200,3 +203,24 @@ def lists_to_tensors(tree, *, dtype=torch.float32, device=None, stack_tensors=Tr
         return x
 
     return rec(tree)
+
+
+def img_transforms_wrapper(cfg: DictConfig):
+    image_transforms = None
+    if cfg.image_transforms.enable:
+        cfg_tf = cfg.image_transforms
+        image_transforms = get_image_transforms(
+            brightness_weight=cfg_tf.brightness.weight,
+            brightness_min_max=cfg_tf.brightness.min_max,
+            contrast_weight=cfg_tf.contrast.weight,
+            contrast_min_max=cfg_tf.contrast.min_max,
+            saturation_weight=cfg_tf.saturation.weight,
+            saturation_min_max=cfg_tf.saturation.min_max,
+            hue_weight=cfg_tf.hue.weight,
+            hue_min_max=cfg_tf.hue.min_max,
+            sharpness_weight=cfg_tf.sharpness.weight,
+            sharpness_min_max=cfg_tf.sharpness.min_max,
+            max_num_transforms=cfg_tf.max_num_transforms,
+            random_order=cfg_tf.random_order,
+        )
+    return image_transforms

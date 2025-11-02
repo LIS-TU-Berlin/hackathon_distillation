@@ -3,39 +3,11 @@ import torch as th
 import einops
 import torch.nn.functional as F
 from torch import nn
-from typing import Optional
 from omegaconf import DictConfig
 
-from hackathon_distillation.networks.da_encoder import DaEncoder
 from hackathon_distillation.networks.depth_encoder import DepthImageEncoder
 from hackathon_distillation.policy.ModelWrapperABC import ModelWrapper
 from hackathon_distillation.policy.utils.normalize import Normalize, Unnormalize
-
-def prepare_input(
-    rgb_encoder: th.nn.Module,
-    batch: dict[str, th.Tensor],
-    device: th.device,
-    use_images: bool = False,
-    use_state: bool = True,
-) -> th.Tensor:
-    """Computes the conditioning from observations and timesteps."""
-    assert use_images or use_state, "At least one of use_images or use_state must be True."
-    if use_state:
-        batch_size, n_obs_steps = batch["obs.state"].shape[:2]
-        features = [batch["obs.state"][:, :n_obs_steps].to(device)]
-    else:
-        batch_size, n_obs_steps = batch["obs.img"].shape[:2]
-        features = []
-
-    if use_images:
-        imgs = batch["obs.img"][:, :n_obs_steps]
-        img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...")
-        img_features = rgb_encoder(img_inputs.to(device))
-        img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)
-        features.append(img_features)
-
-    input = th.cat(features, dim=-1).flatten(start_dim=1)
-    return input
 
 
 class MlpWrapper(ModelWrapper):
@@ -60,7 +32,9 @@ class MlpWrapper(ModelWrapper):
         # Instantiate the model
         self.model = MlpModel(cfg)
         self._use_images = any(k.startswith("obs.img") for k in cfg.network.input_shapes)
+        self._use_depth = any(k.startswith("obs.depth") for k in cfg.network.input_shapes)
         self._use_state = "obs.state" in cfg.network.input_shapes
+        assert self._use_images or self._use_state or self._use_depth, "At least one of use_depth, use_images or use_state must be True."
 
     def compute_loss(self, model: th.nn.Module, batch: dict[str, th.Tensor]) -> dict[str, th.Tensor]:
         """
@@ -126,9 +100,10 @@ class MlpModel(nn.Module):
 
         self.rgb_encoder = None
         self._use_images = any(k.startswith("obs.img") for k in config.network.input_shapes)
+        self._use_depth = any(k.startswith("obs.depth") for k in config.network.input_shapes)
         self._use_state = "obs.state" in config.network.input_shapes
 
-        print(f"MlpModel: use_images = {self._use_images}, use_state = {self._use_state}")
+        print(f"MlpModel: use_images = {self._use_images}, use_depth = {self._use_depth} use_state = {self._use_state}")
 
         # Compute input_dim
         input_dim = 0
@@ -136,9 +111,15 @@ class MlpModel(nn.Module):
             if self._use_state:
                 input_dim += self.cfg.network.input_shapes["obs.state"][0]
 
-        if self._use_images:
+        # TODO: use proper img encoder here
+        # if self._use_images:
+        #     self.rgb_encoder = DepthImageEncoder(feature_dim=self.cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
+        #     num_images = len([k for k in self.cfg.network.input_shapes if k.startswith("obs.img")])
+        #     input_dim += self.rgb_encoder.feature_dim * num_images
+
+        if self._use_depth:
             self.rgb_encoder = DepthImageEncoder(feature_dim=self.cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
-            num_images = len([k for k in self.cfg.network.input_shapes if k.startswith("obs.img")])
+            num_images = len([k for k in self.cfg.network.input_shapes if k.startswith("obs.depth")])
             input_dim += self.rgb_encoder.feature_dim * num_images
 
         self.input_dim = input_dim
@@ -155,16 +136,22 @@ class MlpModel(nn.Module):
         batch: dict[str, th.Tensor], 
     ) -> th.Tensor:
         input = None
-
         if batch is not None:
-            # self.print_batch_shapes(batch)
-            input = prepare_input(
-                self.rgb_encoder,
-                batch,
-                device=self.device,
-                use_images=self._use_images,
-                use_state=self._use_state,
-            )
+            if self._use_state:
+                batch_size, n_obs_steps = batch["obs.state"].shape[:2]
+                features = [batch["obs.state"][:, :n_obs_steps].to(self.device, non_blocking=True)]
+            else:
+                batch_size, n_obs_steps = batch["obs.depth"].shape[:2]
+                features = []
+
+            if self._use_depth:
+                imgs = batch["obs.depth"][:, :n_obs_steps]
+                img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...")
+                img_features = self.rgb_encoder(img_inputs.to(self.device, non_blocking=True))
+                img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)
+                features.append(img_features)
+
+            input = th.cat(features, dim=-1).flatten(start_dim=1)
         return self.network(input).view(-1, self.cfg.pred_horizon, self.cfg.network.output_shapes["action"][0])
     
     def print_batch_shapes(self, batch: dict[str, th.Tensor]):

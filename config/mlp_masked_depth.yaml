@@ -7,7 +7,7 @@ log_dir: "logs/mlp"
 ckpt_save_path: "ckpts"
 misc_save_path: "misc"
 is_debug: false
-run_name: "mlp_depth_only"
+run_name: "mlp_masked_depth_hadamard"
 
 # Training hyperparams
 epochs: 200
@@ -15,7 +15,7 @@ batch_size: 32   # this is per device if ddp is used
 grad_clip_norm: 10.
 seed: 123
 port: 12338
-devices: [5, 6]
+devices: [2, 3]
 strategy: ddp  # [cuda, ddp, fsdp]; cuda is single gpu, ddp is data multigpu, fsdp is model & data different gpus
 val_every: 10
 save_every: 20
@@ -30,7 +30,7 @@ pred_horizon: 4
 action_horizon: 2
 
 # Policy options
-model_type: hackathon_distillation.policy.mlp_wrapper.MlpWrapper
+model_type: hackathon_distillation.policy.mlp_wrapper.MaskedMlpWrapper
 do_mask_loss_for_padding: false
 
 # Network

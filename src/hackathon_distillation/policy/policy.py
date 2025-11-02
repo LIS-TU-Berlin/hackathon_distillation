@@ -109,6 +109,7 @@ class Policy(nn.Module):
             batch = {k: th.stack(list(self._queues[k]), dim=1) for k in batch if k in self._queues}
             batch = to_device(batch, device=self.torch_module.device)
             batch = self.torch_module.normalize_inputs(batch)
+            # batch["obs.img"] = batch["obs.img"].squeeze(2)
             actions = self.policy.generate_actions(batch)
             actions = self.policy.unnormalize_outputs({"action": actions})["action"]
 

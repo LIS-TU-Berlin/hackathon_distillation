@@ -112,7 +112,9 @@ class Robot:
             D.update(rgb, depth)
 
             # Prediction is wrt to wrist camera
-            target_pos = self.predict(depth)
+            rgb_ = np.moveaxis(rgb, -1, 0)
+            target_pos = self.predict(rgb_)
+            # target_pos = self.predict(depth)
             q_target, ret = self.IK(target_pos)
             if ret.feasible:
                 self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
@@ -136,8 +138,8 @@ if __name__ == "__main__":
     p.add_argument("--maxhist", type=int, default=2, help="Max. len of input history")
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
-    p.add_argument("--modelpth", type=str, default="/home/data/hackathon/ckpts/mlp/run_02/last.pt", help="Path to model")
-    # p.add_argument("--modelpth", type=str, default="/home/braun/hackathon_distillation/ckpts/ddpm_unet_test/last.pt", help="Path to model")
+    # p.add_argument("--modelpth", type=str, default="/home/data/hackathon/ckpts/mlp/run_02/last.pt", help="Path to model")
+    p.add_argument("--modelpth", type=str, default="/home/braun/hackathon_distillation/ckpts/depth_anything_mlp/ep=120.pt", help="Path to model")
     p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot
     p.add_argument("--device_id", type=int, default=1, help="for cuda")  # Use this arg to run on the real robot
     args = p.parse_args()

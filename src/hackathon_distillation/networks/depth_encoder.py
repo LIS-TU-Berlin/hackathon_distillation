@@ -9,7 +9,7 @@ class DepthImageEncoder(nn.Module):
     Input: (B, 1, H, W)
     Output: (B, feature_dim)
     """
-    def __init__(self, feature_dim=256, pretrained=False, freeze_layers=False):
+    def __init__(self, feature_dim=256, n_channels_in: int = 1, pretrained=False, freeze_layers=False):
         super(DepthImageEncoder, self).__init__()
         self.feature_dim = feature_dim
 
@@ -17,8 +17,10 @@ class DepthImageEncoder(nn.Module):
         base_model = models.resnet18(pretrained=pretrained)
 
         # Modify first conv layer to accept 1 channel (depth image)
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.conv1.weight.data = base_model.conv1.weight.data.sum(dim=1, keepdim=True) / 3.0  # average RGB weights
+        self.conv1 = nn.Conv2d(n_channels_in, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        mono_w = base_model.conv1.weight.data.mean(dim=1, keepdim=True)  # same as sum()/3 but cleaner
+        mono_w_2 = mono_w.repeat(1, n_channels_in, 1, 1)
+        self.conv1.weight.data = mono_w_2.clone()
 
         # Keep rest of the layers
         self.encoder = nn.Sequential(
@@ -71,7 +73,7 @@ if __name__ == "__main__":
 
     encoder = DepthImageEncoder()
 
-    imgs = th.randn(64, 2, 1, 360, 640)
+    imgs = th.randn(64, 2, 2, 360, 640)
     imgs = einops.rearrange(imgs, "b s ... -> (b s) ...")
     print(imgs.shape)
     x = encoder(imgs)
