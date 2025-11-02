@@ -3,6 +3,9 @@ import hackathon_distillation as hack
 import time
 import numpy as np
 
+from hackathon_distillation.masker import Masker
+
+
 class ExpertBehavior:
     T_episode = 5.
     tau_sim = .01
@@ -88,10 +91,13 @@ class ExpertBehavior:
         data_q = np.empty((num_steps, 7))
         data_rgb = np.empty((num_steps, 360, 640, 3))
         data_depth = np.empty((num_steps, 360, 640))
+        data_mask = np.empty((num_steps, 360, 640))
         data_ee_action = np.empty((num_steps, 3))
         step = 0
 
         #self.S.C.getFrame('cameraWrist').setAttributes({'zRange': [0.1, 10.0]})
+
+        masker = Masker()
 
         t = 0
         for step in range(num_steps):
@@ -119,6 +125,7 @@ class ExpertBehavior:
                 data_ee_pos[step] = self.S.ref.getPosition()
                 data_q[step] = self.S.C.getJointState()
                 data_rgb[step], data_depth[step] = sim.getImageAndDepth()
+                data_mask[step] = masker.color_mask(data_rgb[step])
 
             q_target, ret = self.IK(action)
             if ret.feasible:
@@ -132,5 +139,6 @@ class ExpertBehavior:
             h5.write(tag+'q', data_q)
             h5.write(tag+'rgb', data_rgb, dtype='uint8')
             h5.write(tag+'depth', data_depth, dtype='float32')
+            h5.write(tag+'mask', data_mask, dtype='uint8')
 
         self.episode_count += 1

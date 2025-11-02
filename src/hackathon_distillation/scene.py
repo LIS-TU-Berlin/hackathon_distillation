@@ -7,6 +7,10 @@ class Scene:
     def __init__(self):
         self.C = ry.Config()
         self.C.addFile('$RAI_PATH/scenarios/pandaSingle.g')
+
+        table = self.C.getFrame("table")  # explicitly set the color here
+        table.setColor([1., 1., 1.])
+
         self.ball = self.C.addFrame('ball')
         self.ball.setShape(ry.ST.sphere, [.0315]) .setColor([.2, .5, .6]) .setPosition([-.05, .45, 1.])
 

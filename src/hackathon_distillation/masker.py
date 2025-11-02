@@ -1,162 +1,111 @@
-import torch
-import robotic as ry
 import cv2
 import numpy as np
-from ultralytics import YOLO, SAM, FastSAM
-from typing import List, Tuple, Any
-from einops import rearrange
-import time
-
-import hackathon_distillation as hack
 
 class Masker:
-
     def __init__(
-        self, 
-        detect_model_pth:str="yolo11m.pt", 
-        segment_model_pth:str="yolo11l-seg.pt", 
-        bot:ry.BotOp=None
-        ):
-        self.bot = bot
-        self.detect_model = None # YOLO(detect_model_pth)
-        self.segment_model = None # FastSAM(segment_model_pth)
+        self,
+        known_rgb=(0.2, 0.5, 0.6),  # normalized [0..1]
+        hue_tol_deg=10,            # how far hue can drift
+        sat_range=(0.2, 1.0),      # allowed saturation range
+        val_range=(0.1, 1.0),      # allowed value/brightness range
+    ):
+        # ----- blob detector init (unchanged, keep if you still want blob()) -----
+        params = cv2.SimpleBlobDetector_Params()
+        params.filterByCircularity = True
+        params.minCircularity = 0.4
+        params.filterByArea = True
+        params.minArea = 400
+        params.maxArea = 2e5
+        params.minThreshold = 1
+        params.maxThreshold = 150
+        params.thresholdStep = 10
+        self.detector = cv2.SimpleBlobDetector_create(params)
 
-    def IK(self, target_pos):
-        komo = ry.KOMO(self.S.C, 1, 1, 0, False)
-        komo.addControlObjective([], 0, 1e-1)
-        komo.addObjective([], ry.FS.position, ['ref'], ry.OT.sos, [1e2], target_pos)
-        komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
-        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
-        komo.addObjective([], ry.FS.negDistance, ["l_panda_coll3", "wall"], ry.OT.ineq)
+        # ----- store thresholds for color segmentation -----
+        self.hue_tol_deg = hue_tol_deg
+        self.sat_min, self.sat_max = sat_range
+        self.val_min, self.val_max = val_range
 
-        sol = ry.NLP_Solver(komo.nlp(), verbose=0)
-        sol.setOptions(stopInners=10, damping=1e-4) ##very low cost
-        ret = sol.solve()
+        # convert known_rgb (float tuple 0..1) into HSV once
+        rgb_arr = np.array([[list(known_rgb)]], dtype=np.float32)  # shape (1,1,3)
+        rgb_arr_255 = (rgb_arr * 255.0).astype(np.uint8)  # cv2 expects 0..255 uint8
+        # cv2 assumes BGR, so we need to swap channels: RGB -> BGR
+        bgr_arr_255 = rgb_arr_255[..., ::-1]
+        hsv_arr = cv2.cvtColor(bgr_arr_255, cv2.COLOR_BGR2HSV).astype(np.float32)
+        # hsv: H in [0,179], S in [0,255], V in [0,255] for uint8 OpenCV HSV
+        self.target_h = hsv_arr[0,0,0]  # hue
+        self.target_s = hsv_arr[0,0,1]
+        self.target_v = hsv_arr[0,0,2]
 
-        if not ret.feasible:
-            print(f"KOMO report: {komo.report()}")
-
-        return [komo.getPath()[0], ret]
-
-    def segment(self, img:np.ndarray):
-        """
-        
-        """
-        raise NotImplementedError("Segmentation model is not available!")
- 
-        results = self.segment_model([img])
-
-        masks = []
-        for r in results:
-            if r.masks:
-                for m in r.masks:
-                    _m = m.data.detach().cpu().numpy()[0]*255
-                    masks.append(_m.astype(np.uint8))
-        
-        # Union of all masks
-        if len(masks) > 0:
-            mask = np.zeros_like(masks[0], dtype=np.uint8)
-            for m in masks:
-                mask = self.img_or(mask, m)
+    def _to_uint8_rgb(self, img):
+        if img.dtype == np.float32 or img.dtype == np.float64:
+            vmin = float(img.min())
+            vmax = float(img.max())
+            if vmax <= 1.0 and vmin >= 0.0:
+                img_u8 = (img * 255.0).clip(0,255).astype(np.uint8)
+            else:
+                img_u8 = img.clip(0,255).astype(np.uint8)
         else:
-            mask = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
+            img_u8 = img.astype(np.uint8)
+        return img_u8
+
+    def color_mask(self, img_rgb: np.ndarray):
+        """
+        Returns a binary mask (H,W) uint8 where 255 = pixel whose color
+        matches the known object color (robust-ish to lighting).
+        """
+
+        # 1. ensure we have uint8 and convert RGB->BGR for OpenCV
+        img_u8 = self._to_uint8_rgb(img_rgb)
+        img_bgr = img_u8[..., ::-1]  # RGB -> BGR
+
+        # 2. convert frame to HSV
+        hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV).astype(np.float32)
+
+        H = hsv[..., 0]  # [0,179]
+        S = hsv[..., 1]  # [0,255]
+        V = hsv[..., 2]  # [0,255]
+
+        # 3. compute hue distance with wrap-around
+        # hue is circular (0 ~ 180). We'll do shortest distance on a circle.
+        dh = np.abs(H - self.target_h)
+        dh = np.minimum(dh, 180.0 - dh)
+
+        # 4. threshold by hue closeness, saturation range, value range
+        hue_ok = dh <= self.hue_tol_deg * (180.0/360.0) * 360.0/2.0
+        # Wait, that looks scary. Let's explain & simplify:
+
+        # cv2 hue range is 0..179 which corresponds to 0..360 degrees
+        # So 1 "hue unit" in cv2 HSV = 2 degrees.
+        # If we want hue_tol_deg in real degrees:
+        # allowed_hue_diff_in_cv2_units = hue_tol_deg / 2
+        allowed_hue_diff_cv2 = self.hue_tol_deg / 2.0
+        hue_ok = dh <= allowed_hue_diff_cv2
+
+        sat_ok = (S >= self.sat_min*255.0) & (S <= self.sat_max*255.0)
+        val_ok = (V >= self.val_min*255.0) & (V <= self.val_max*255.0)
+
+        mask_bool = hue_ok & sat_ok & val_ok
+
+        # 5. convert to uint8 [0,255]
+        mask = np.zeros_like(H, dtype=np.uint8)
+        mask[mask_bool] = 255
+        kernel = np.ones((5,5), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
         return mask
 
-    def blob(self, img:np.ndarray):
-            
-            # Setup SimpleBlobDetector parameters
-            params = cv2.SimpleBlobDetector_Params()
-            params.filterByCircularity = True
-            params.minCircularity = 0.6
-            params.filterByArea = True
-            params.minArea = 200
-            params.maxArea = 2e5
-            params.minThreshold = 1
-            params.maxThreshold = 150
-            params.thresholdStep = 10
-            params.filterByInertia = False
-            #params.filterByConvexity = False
+    def blob(self, img: np.ndarray):
+        img_u8 = self._to_uint8_rgb(img)
+        gray = cv2.cvtColor(img_u8, cv2.COLOR_RGB2GRAY)
+        keypoints = self.detector.detect(gray)
+        mask = np.zeros(gray.shape, dtype=np.uint8)
+        detected = False
+        for kp in keypoints:
+            detected = True
+            x, y = int(kp.pt[0]), int(kp.pt[1])
+            r = int(kp.size / 2)
+            cv2.circle(mask, (x, y), r, 255, -1)
 
-            
-            # Create a detector with the parameters
-            detector = cv2.SimpleBlobDetector_create(params)
-
-            keypoints = detector.detect(img)
-
-            mask = np.zeros_like(img, dtype=np.uint8)
-
-            detected = False
-            for kp in keypoints:
-                detected = True
-                x, y = int(kp.pt[0]), int(kp.pt[1])
-                r = int(kp.size / 2)
-                cv2.circle(mask, (x, y), r, (255, 255, 255), -1)
-
-            return mask, detected
-    
-    def img_or(self, img1:np.ndarray, img2:np.ndarray):
-        return cv2.bitwise_or(img1, img2)
-
-    def img_and(self, img1:np.ndarray, img2:np.ndarray):
-        return cv2.bitwise_and(img1, img2)
-    
-if __name__ == "__main__":
-
-    S = hack.Scene()
-    q0 = S.C.getJointState()
-    ee0 = S.C.getFrame('l_gripper').getPosition()
-    bot = ry.BotOp(C=S.C, useRealRobot=True)
-
-    m = Masker(bot=bot)
-
-    rgb, depth = bot.getImageAndDepth('cameraWrist')
-
-    mask_seg = m.segment(rgb)
-    mask_blob = m.blob(rgb)
-
-    D = hack.DataPlayer(mask_blob, depth)
-
-    t0 = bot.get_t()
-    target_pos = ee0.copy()
-
-    seg_ms = 0.0
-    blob_ms = 0.0   
-    cnt = 0
-
-    while bot.get_t() - t0 < 30:
-        rgb, depth = bot.getImageAndDepth('cameraWrist')
-
-        start = time.perf_counter()
-        mask_seg = m.segment(rgb)
-        seg_ms += (time.perf_counter() - start) * 1000.0
-        
-        start = time.perf_counter()
-        mask_blob = m.blob(rgb)
-        blob_ms += (time.perf_counter() - start) * 1000.0
-        
-        D.update(mask_blob, depth)
-
-        target_pos *= 1.001
-        #q_target, ret = m.IK(target_pos)
-
-        if True:
-            bot.moveTo(q0, timeCost=1.0, overwrite=True)
-        else:
-            print("Not feasible!")
-            break
-
-        bot.sync(S.C, .1)
-        
-        time.sleep(0.1)
-
-        cnt += 1
-
-        key = bot.sync(S.C, .1)
-        if key==ord('q'):
-            break
-
-        print(f"Average segmentation time: {seg_ms/cnt:.2f} ms")
-        print(f"Average blob detection time: {blob_ms/cnt:.2f} ms")
-
-
+        return mask, detected
