@@ -100,7 +100,7 @@ class ModelWrapper(ABC):
         if 'obs.img' in batch.keys():
             batch_size, n_obs_steps = batch["obs.img"].shape[:2]
         else:
-            batch_size, n_obs_steps = batch["obs.state"].shape[:2]
+            batch_size, n_obs_steps = batch["obs.depth"].shape[:2]
         assert n_obs_steps == self.config.obs_horizon, (
             f"Expected {self.config.obs_horizon} observation steps, but got {n_obs_steps}."
         )

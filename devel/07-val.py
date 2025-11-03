@@ -1,3 +1,4 @@
+import os
 import argparse
 from pathlib import Path
 
@@ -10,8 +11,12 @@ import torch
 import hackathon_distillation as hack
 from collections import deque
 
+from hackathon_distillation import Masker
 from hackathon_distillation.policy.policy import Policy
 from hackathon_distillation.policy.trainer import DATA_PATH
+
+
+DATASET_NAME = Path(os.environ.get("DATASET_NAME"))
 
 
 # Input depth, 3D EE position, output position, keep orientation free
@@ -20,18 +25,20 @@ from hackathon_distillation.policy.trainer import DATA_PATH
 class Robot:
 
     def __init__(self, args):
+        np.random.seed(args.seed)
         self.args = args
         self.S = hack.Scene()
         self.q0 = self.S.C.getJointState()
         self.ball_pos0 = self.S.ball.getPosition()
         self.bot = ry.BotOp(C=self.S.C, useRealRobot=self.args.real)
         self.modelpth = args.modelpth
-        self.device_id = args.device_id
+        self.device_id = "cpu" if args.device_id < 0 else f"cuda:{args.device_id}"
         self.generate_ball_motion()
 
         # Load the model
-        stats_file = Path(DATA_PATH / "data_stats.pt")
-        self.policy = Policy(Path(self.modelpth), stats_file, map_location=f"cpu")  # todo: fix for cpu
+        stats_file = Path(DATA_PATH / f"{DATASET_NAME}_stats.pt")
+        self.policy = Policy(Path(self.modelpth), stats_file, map_location=self.device_id)
+        self.masker = Masker()
 
     def IK(self, camera_relative_ball_pos):
         self.S.ref_target.setRelativePosition(camera_relative_ball_pos)
@@ -53,8 +60,8 @@ class Robot:
 
         return [komo.getPath()[0], ret]
     
-    def predict(self, depth:np.ndarray):
-        batch = {"obs.img": torch.Tensor(depth)[None]}
+    def predict(self, depth:np.ndarray, mask: np.ndarray):
+        batch = {"obs.depth": torch.Tensor(depth)[None, None], "obs.mask": torch.Tensor(mask)[None, None]}
         actions = self.policy.select_action(batch)
         return actions
     
@@ -112,9 +119,9 @@ class Robot:
             D.update(rgb, depth)
 
             # Prediction is wrt to wrist camera
-            rgb_ = np.moveaxis(rgb, -1, 0)
-            target_pos = self.predict(rgb_)
-            # target_pos = self.predict(depth)
+            #rgb_ = np.moveaxis(rgb, -1, 0)
+            mask = self.masker.color_mask(rgb)
+            target_pos = self.predict(depth, mask)   # todo: proprio?
             q_target, ret = self.IK(target_pos)
             if ret.feasible:
                 self.bot.moveTo(q_target, timeCost=self.args.tc, overwrite=True)
@@ -139,9 +146,10 @@ if __name__ == "__main__":
     p.add_argument("--tc", type=float, default=1.0, help="Arg for bot.moveTo (lower is slower)")
     p.add_argument("--sleep", type=float, default=0.0, help="Sleep time")
     # p.add_argument("--modelpth", type=str, default="/home/data/hackathon/ckpts/mlp/run_02/last.pt", help="Path to model")
-    p.add_argument("--modelpth", type=str, default="/home/braun/hackathon_distillation/ckpts/depth_anything_mlp/ep=120.pt", help="Path to model")
+    p.add_argument("--modelpth", type=str, default="/home/braun/hackathon_distillation/ckpts/mlp_masked_depth_separatein/last.pt", help="Path to model")
     p.add_argument("--real", action="store_true", default=False, help="Use this arg if real robot is used")  # Use this arg to run on the real robot
-    p.add_argument("--device_id", type=int, default=1, help="for cuda")  # Use this arg to run on the real robot
+    p.add_argument("--device_id", type=int, default=-1, help="for cuda")  # Use this arg to run on the real robot
+    p.add_argument("--seed", type=int, default=0, help="for reference")  # Use this arg to run on the real robot
     args = p.parse_args()
 
     print(args)

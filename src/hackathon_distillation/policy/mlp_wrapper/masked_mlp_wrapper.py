@@ -41,7 +41,7 @@ class MaskedMlpModel(nn.Module):
                 input_dim += self.cfg.network.input_shapes["obs.state"][0]
 
         if self._use_depth:
-            self.depth_encoder = DepthImageEncoder(n_channels_in=1, feature_dim=self.cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
+            self.depth_encoder = DepthImageEncoder(n_channels_in=2, feature_dim=self.cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
             # self.depth_encoder = RgbEncoder(config.network)
             num_images = len([k for k in self.cfg.network.input_shapes if k.startswith("obs.depth")])
             input_dim += self.depth_encoder.feature_dim * num_images
@@ -71,11 +71,10 @@ class MaskedMlpModel(nn.Module):
                 # TODO: change mask operation to make depth = 0 be treated different to masked values
                 mask = batch["obs.mask"][:, :n_obs_steps]
                 depth = batch["obs.depth"][:, :n_obs_steps]
-                #img_inputs = depth * (mask == 255.)
                 valid = (mask == 255.).float()
-                # depth_with_flag = th.cat([depth, valid], dim=2)
-                valid = (batch["obs.mask"][:, :n_obs_steps] == 255.)
-                depth_with_flag = th.where(valid, depth, th.full_like(depth, -10.))
+                depth_with_flag = th.cat([depth, valid], dim=2)
+                #valid = (batch["obs.mask"][:, :n_obs_steps] == 255.)
+                #depth_with_flag = th.where(valid, depth, th.full_like(depth, -10.))
                 img_inputs = einops.rearrange(depth_with_flag, "b s ... -> (b s) ...")
                 img_features = self.depth_encoder(img_inputs.to(self.device, non_blocking=True))
                 img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)

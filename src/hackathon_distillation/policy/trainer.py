@@ -34,6 +34,7 @@ from hackathon_distillation.dataset.dataset import BallImageDataset
 ROOT = pathlib.Path(os.environ["REPO_PATH"])
 CODEBASE_VERSION = os.environ.get("CODEBASE_VERSION")
 DATA_PATH = pathlib.Path(os.environ.get("DATA_PATH"))
+DATASET_NAME = pathlib.Path(os.environ.get("DATASET_NAME"))
 
 
 def setup(rank, world_size, port):
@@ -317,7 +318,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
 
     # create dataset from file
     train_data = BallImageDataset(
-        data_path=DATA_PATH / "mask_data.zarr",
+        data_path=DATA_PATH / f"{DATASET_NAME}.zarr",
         # data_path=DATA_PATH / "test_data.zarr",
         keys=('depth', 'ee_pos', 'ee_action', 'rgb', 'mask'),
         horizon=cfg.pred_horizon,
@@ -327,7 +328,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
         image_transforms=img_transforms_wrapper(cfg),
     )
     val_data = train_data.get_validation_dataset()
-    stats_file = DATA_PATH / "mask_data_stats.pt"
+    stats_file = DATA_PATH / f"{DATASET_NAME}_stats.pt"
     if stats_file.exists():
         with stats_file.open("r") as f:
             data_stats = th.load(stats_file)
