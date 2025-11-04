@@ -1,1 +1,1 @@
-from hackathon_distillation.policy.flow_matching.fm_wrapper import DdpmWrapper
+from hackathon_distillation.policy.flow_matching.fm_wrapper import FlowMatchingWrapper

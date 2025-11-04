@@ -17,16 +17,21 @@ def prepare_global_conditioning(
     rgb_encoder: th.nn.Module,
     batch: dict[str, th.Tensor],
     device: th.device,
-    use_images: bool = False
+    use_images: bool = False,
+    use_state: bool = None
 ) -> th.Tensor:
     """Computes the conditioning from observations and timesteps."""
-    batch_size, n_obs_steps = batch["obs.state"].shape[:2]
-    global_cond_feats = [batch["obs.state"][:, :n_obs_steps].to(device, non_blocking=True)]
+    batch_size, n_obs_steps = batch["obs.depth"].shape[:2]
+    if use_state:
+        global_cond_feats = [batch["obs.state"][:, :n_obs_steps].to(device, non_blocking=True)]
+    else:
+        global_cond_feats = []
 
     if use_images:
-        imgs = batch["obs.img"][:, :n_obs_steps]
-        img_inputs = einops.rearrange(imgs, "b s ... -> (b s) ...")
-        print(img_inputs.shape)
+        depth = batch["obs.depth"][:, :n_obs_steps]
+        valid = (batch["obs.mask"][:, :n_obs_steps] == 255.)
+        depth_with_flag = th.where(valid, depth, th.full_like(depth, -10.))
+        img_inputs = einops.rearrange(depth_with_flag, "b s ... -> (b s) ...")
         img_features = rgb_encoder(img_inputs.to(device, non_blocking=True))
         img_features = einops.rearrange(img_features, "(b s) ... -> b s (...)", b=batch_size, s=n_obs_steps)
         global_cond_feats.append(img_features)
@@ -87,7 +92,7 @@ class DdpmWrapper(ModelWrapper):
         }
         """
         # Input validation.
-        assert set(batch).issuperset({"obs.state", "action"})
+        assert set(batch).issuperset({"action"})
         horizon = batch["action"].shape[1]
         assert horizon == self.config.pred_horizon, f"MISMATCH: horizon = {horizon}, config.pred_horizon = {self.config.pred_horizon}"
 
@@ -166,7 +171,7 @@ class DdpmWrapper(ModelWrapper):
         """Return list of optimizers and list of schedulers."""
         decay_params, no_decay_params = self.model.network.configure_parameters()
         if self.model._use_images:
-            decay_params += list(self.model.rgb_encoder.parameters())
+            decay_params += list(self.model.depth_encoder.parameters())
         optim_groups = [
             {
                 "params": decay_params,
@@ -191,25 +196,35 @@ class DdpmModel(nn.Module):
     def __init__(self, cfg: DictConfig):
         super().__init__()
         self.cfg = cfg
-        self.rgb_encoder = None
+        self.depth_encoder = None
         self._use_images = any(k.startswith("obs.img") for k in cfg.network.input_shapes)
+        self._use_depth = any(k.startswith("obs.depth") for k in cfg.network.input_shapes)
+        self._use_state = "obs.state" in cfg.network.input_shapes
 
-        # Compute global_cond_dim
-        global_cond_dim = 0
-        if cfg.obs_horizon > 0:
-            assert "obs.state" in cfg.network.input_shapes
-            global_cond_dim += cfg.network.input_shapes["obs.state"][0]
+        # Compute input_dim
+        input_dim = 0
+        if self.cfg.obs_horizon > 0:
+            if self._use_state:
+                input_dim += self.cfg.network.input_shapes["obs.state"][0]
 
-        if self._use_images:
-            # self.rgb_encoder = DepthImageEncoder(feature_dim=cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False) #RgbEncoder(cfg.network)
-            self.rgb_encoder = RgbEncoder(cfg.network)
-            num_images = len([k for k in cfg.network.input_shapes if k.startswith("obs.img")])
-            global_cond_dim += self.rgb_encoder.feature_dim * num_images
-        self.global_cond_dim = global_cond_dim
+        if self._use_depth:
+            # self.depth_encoder = DepthImageEncoder(
+            #     n_channels_in=1,
+            #     feature_dim=self.cfg.network.spatial_softmax_num_keypoints,
+            #     pretrained=False,
+            #     freeze_layers=False
+            # )
+            self.depth_encoder = RgbEncoder(cfg.network)
+            num_images = len([k for k in self.cfg.network.input_shapes if k.startswith("obs.depth")])
+            input_dim += self.depth_encoder.feature_dim * num_images
+
+        self.input_dim = input_dim
 
         # Create the UNet model
-        self.network = hydra.utils.get_class(cfg.network.network_cls)(
-            cfg, global_cond_dim=self.global_cond_dim * cfg.obs_horizon
+        self.network = hydra.utils.get_class(self.cfg.network.network_cls)(
+            self.cfg, #input_dim=self.input_dim * self.cfg.obs_horizon,
+            global_cond_dim=self.cfg.obs_horizon * input_dim
+            #output_dim=self.cfg.network.output_shapes["action"][0]* self.cfg.pred_horizon
         )
 
     def forward(
@@ -221,20 +236,14 @@ class DdpmModel(nn.Module):
         global_cond = None
         if batch is not None:
             global_cond = prepare_global_conditioning(
-                self.rgb_encoder,
+                self.depth_encoder,
                 batch,
                 device=x.device,
-                use_images=self._use_images
+                use_images=self._use_depth,
+                use_state=self._use_state
             )
         return self.network(x, timesteps, global_cond=global_cond)
 
     @property
     def device(self):
         return next(self.parameters()).device
-
-
-# if __name__ == "__main__":
-#     import torch
-#
-#     img = torch.randn((64, 2, 3, 340, 360))
-#     model = DdpmModel()

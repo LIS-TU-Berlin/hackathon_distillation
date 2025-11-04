@@ -4,14 +4,14 @@ import numpy as np
 class Masker:
     def __init__(
         self,
-        # known_rgb=(0.2, 0.5, 0.6),  # normalized [0..1]
-        # hue_tol_deg=10,            # how far hue can drift
-        # sat_range=(0.2, 1.0),      # allowed saturation range
-        # val_range=(0.1, 1.0),      # allowed value/brightness range
-        known_rgb=(1.0, 0.419, 0.),  # normalized [0..1]
-        hue_tol_deg=15,            # how far hue can drift
-        sat_range=(0.5, 1.0),      # allowed saturation range
-        val_range=(0.5, 1.0),      # allowed value/brightness range
+        # known_rgb=(0.2, 0.5, 0.6),  # blue
+        # hue_tol_deg=10,
+        # sat_range=(0.2, 1.0),
+        # val_range=(0.1, 1.0),
+        known_rgb=(1.0, 0.419, 0.),  # orange
+        hue_tol_deg=15,
+        sat_range=(0.5, 1.0),
+        val_range=(0.5, 1.0),
     ):
         # ----- blob detector init (unchanged, keep if you still want blob()) -----
         params = cv2.SimpleBlobDetector_Params()

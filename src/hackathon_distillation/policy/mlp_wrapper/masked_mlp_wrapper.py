@@ -15,9 +15,9 @@ from hackathon_distillation.policy.utils.normalize import Normalize, Unnormalize
 
 class MaskedMlpWrapper(MlpWrapper):
     def __init__(
-        self,
-        cfg: DictConfig,
-        dataset_stats: dict[str, dict[str, th.Tensor]] | None = None,
+            self,
+            cfg: DictConfig,
+            dataset_stats: dict[str, dict[str, th.Tensor]] | None = None,
     ):
         super().__init__(cfg, dataset_stats)
         self.model = MaskedMlpModel(cfg)
@@ -41,8 +41,8 @@ class MaskedMlpModel(nn.Module):
                 input_dim += self.cfg.network.input_shapes["obs.state"][0]
 
         if self._use_depth:
-            self.depth_encoder = DepthImageEncoder(n_channels_in=1, feature_dim=self.cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False)
-            # self.depth_encoder = RgbEncoder(config.network)
+            #self.depth_encoder = DepthImageEncoder(n_channels_in=1, feature_dim=self.cfg.network.spatial_softmax_num_keypoints, pretrained=False, freeze_layers=False)
+            self.depth_encoder = RgbEncoder(config.network)
             num_images = len([k for k in self.cfg.network.input_shapes if k.startswith("obs.depth")])
             input_dim += self.depth_encoder.feature_dim * num_images
 
@@ -69,8 +69,8 @@ class MaskedMlpModel(nn.Module):
 
             if self._use_depth:
                 # TODO: change mask operation to make depth = 0 be treated different to masked values
-                mask = batch["obs.mask"][:, :n_obs_steps]
                 depth = batch["obs.depth"][:, :n_obs_steps]
+                #mask = batch["obs.mask"][:, :n_obs_steps]
                 #valid = (mask == 255.).float()
                 #depth_with_flag = th.cat([depth, valid], dim=2)
                 valid = (batch["obs.mask"][:, :n_obs_steps] == 255.)

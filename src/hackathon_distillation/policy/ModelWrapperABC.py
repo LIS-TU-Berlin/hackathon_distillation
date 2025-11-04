@@ -27,18 +27,27 @@ class ModelWrapper(ABC):
 
     def configure_optimizers(self, **kwargs) -> tuple[list[th.optim.Optimizer], list[th.optim.lr_scheduler._LRScheduler]]:
         """Return list of optimizers and list of schedulers."""
+        decay_params, no_decay_params = self.model.network.configure_parameters()
+        if self.model._use_images:
+            decay_params += list(self.model.depth_encoder.parameters())
+        optim_groups = [
+            {
+                "params": decay_params,
+                "weight_decay": self.config.optimizer.kwargs.weight_decay,
+                "lr": self.config.optimizer.kwargs.lr,
+            },
+            {
+                "params": no_decay_params,
+                "weight_decay": 0.0,
+                "lr": self.config.optimizer.kwargs.lr,
+            },
+        ]
+
         optimizer_cls = hydra.utils.get_class(self.config.optimizer._target_)
-        optimizer = ScheduleFreeWrapper(optimizer_cls(self.model.parameters(), **self.config.optimizer.kwargs))
+        optimizer = optimizer_cls(optim_groups, **self.config.optimizer.kwargs)
         optimizer.train_mode = True
 
-        # Example: Adding a learning rate scheduler if specified
-        lr_scheduler = None
-        # if hasattr(self.config, 'lr_scheduler') and self.config.lr_scheduler is not None:
-        #     scheduler_cls = hydra.utils.get_class(self.config.lr_scheduler._target_)
-        #     lr_scheduler = scheduler_cls(optimizer, **self.config.lr_scheduler.kwargs)
-
-        schedulers = [lr_scheduler] if lr_scheduler is not None else []
-        return [optimizer], schedulers
+        return [optimizer], []
 
     def training_step(
         self,

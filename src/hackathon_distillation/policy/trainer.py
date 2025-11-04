@@ -343,7 +343,7 @@ def _train_mp(pid: int, n_devices: int, cfg: DictConfig, run_name: str) -> None:
     n_workers = 1
     pin_memory = False
     if cfg.strategy in ("ddp", "fsdp"):
-        n_workers = 1
+        n_workers = 4
         pin_memory = True
     train_sampler = DistributedSampler(
         train_data,

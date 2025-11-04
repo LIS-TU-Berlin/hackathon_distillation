@@ -64,8 +64,7 @@ class RgbEncoder(nn.Module):
         backbone_model = getattr(torchvision.models, config.vision_backbone)(
             weights=config.pretrained_backbone_weights
         )
-        # Note: This assumes that the layer4 feature map is children()[-3]
-        # TODO(alexander-soare): Use a safer alternative.
+        backbone_model = self.adapt_first_conv_to_single_channel(backbone_model)
         self.backbone = nn.Sequential(*(list(backbone_model.children())[:-2]))
         if config.use_group_norm:
             if config.pretrained_backbone_weights:
@@ -83,7 +82,7 @@ class RgbEncoder(nn.Module):
         # The dummy input should take the number of image channels from `config.input_shapes` and it should
         # use the height and width from `config.crop_shape` if it is provided, otherwise it should use the
         # height and width from `config.input_shapes`.
-        image_keys = [k for k in config.input_shapes if k.startswith("obs.img")]
+        image_keys = [k for k in config.input_shapes if k.startswith("obs.img") or k.startswith("obs.depth")]
         # Note: we have a check in the config class to make sure all images have the same shape.
         image_key = image_keys[0]
         dummy_input_h_w = (
@@ -117,6 +116,47 @@ class RgbEncoder(nn.Module):
         # Final linear layer with non-linearity.
         x = self.relu(self.out(x))
         return x
+
+    @staticmethod
+    def adapt_first_conv_to_single_channel(model: nn.Module) -> nn.Module:
+        target = None
+        for name, m in model.named_modules():
+            if isinstance(m, nn.Conv2d) and m.in_channels == 3 and m.groups == 1:
+                if (m.kernel_size == (7, 7) and m.stride == (2, 2)
+                        and m.padding == (3, 3) and m.out_channels == 64 and m.bias is None):
+                    target = (name, m)
+                    break
+                # Fallback: remember the first eligible 3->* conv
+                if target is None:
+                    target = (name, m)
+
+        if target is None:  # nothing to do
+            return model
+
+        name, old = target
+        new = nn.Conv2d(
+            1,
+            old.out_channels,
+            kernel_size=old.kernel_size,
+            stride=old.stride,
+            padding=old.padding,
+            bias=False
+        )
+
+        with torch.no_grad():
+            new.weight.copy_(old.weight.mean(dim=1, keepdim=True))
+
+        # Install the new conv at the same path
+        parent = model
+        *parents, last = name.split(".")
+        if parents:
+            parent = model.get_submodule(".".join(parents))
+        if isinstance(parent, nn.Sequential):
+            parent[int(last)] = new
+        else:
+            setattr(parent, last, new)
+
+        return model
 
 
 class SpatialSoftmax(nn.Module):

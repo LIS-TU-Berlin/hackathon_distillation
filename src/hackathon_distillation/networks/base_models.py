@@ -33,6 +33,10 @@ class MLP(nn.Module):
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.network(x)
+
+    def configure_parameters(self, *args, **kwargs):
+        decay = [p for (pn, p) in self.named_parameters()]
+        return decay, []
     
 
 class Normalizer(torch.nn.Module):

@@ -6,17 +6,17 @@ defaults:
 log_dir: "logs"
 ckpt_save_path: "ckpts"
 misc_save_path: "misc"
-run_name: "fm_unet_test"
+is_debug: false
+run_name: "fm_masked"
 
 # Training hyperparams
-is_debug: false
 epochs: 200
-batch_size: 64   # this is per device if ddp is used
+batch_size: 32   # this is per device if ddp is used
 grad_clip_norm: 10.
 seed: 123
-port: 12334
-devices: [1]
-strategy: cuda  # [cuda, ddp, fsdp]; cuda is single gpu, ddp is data multigpu, fsdp is model & data different gpus
+port: 12335
+devices: [0, 1]
+strategy: ddp  # [cuda, ddp, fsdp]; cuda is single gpu, ddp is data multigpu, fsdp is model & data different gpus
 val_every: 10
 save_every: 20
 save_max: 3
@@ -26,28 +26,29 @@ save_max: 3
 #n_obs_steps: 1    # Use 0 for unconditional generation -- not used during training
 #horizon: 128  # prediction horizon -- what the actual model predicts
 obs_horizon: 2
-pred_horizon: 16
-action_horizon: 8
+pred_horizon: 4
+action_horizon: 2
 
 # Policy options
-model_type: src.hackathon_distillation.policy.flow_matching.FlowMatchingWrapper
+model_type: hackathon_distillation.policy.flow_matching.FlowMatchingWrapper
 num_inference_steps: 10   # How many steps are used for denoising during inference; if null this is eq. to num of train steps
 do_mask_loss_for_padding: false
 drop_n_last_frames: True
 prediction_type: "epsilon"
 use_beta: True  # use beta schedule from pi
+pos_emb_scale: 1.
 
 # Network
 network:
   dropout: 0.
   down_dims: [ 512, 1024, 2048 ]
   input_shapes: {
-    "obs.img": [1, 360, 640],  # comment out for no images
-    "obs.state": [ 3 ],
+    "obs.depth": [1, 360, 640],  # comment out for no images
+    #    "obs.state": [ 3 ],
   }
   input_normalization_modes: {
-    "obs.img": "mean_std",
-    "obs.state": "min_max",
+    "obs.depth": "mean_std",
+    #"obs.state": "min_max",
   }
   output_shapes: {
     "action": [ 3 ],  # Note we need feature dim first! Find out why and how this works; feature dim is ndof
