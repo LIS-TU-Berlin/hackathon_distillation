@@ -60,6 +60,7 @@ class Policy(nn.Module):
         self._queues = None
 
         cfg = OmegaConf.load(f"{checkpoint_path.parent}/config.yaml")
+        #cfg.action_horizon = 2
         self.policy = hydra.utils.get_class(cfg.model_type).from_checkpoint(checkpoint_path, map_location)
         #self.expected_image_keys = [k for k in self.policy.config.network.input_shapes if k.startswith("obs.img")]  # todo: refactor keys
         self.expected_image_keys = ["obs.depth", "obs.mask"]

@@ -4,10 +4,14 @@ import numpy as np
 class Masker:
     def __init__(
         self,
-        known_rgb=(0.2, 0.5, 0.6),  # normalized [0..1]
-        hue_tol_deg=10,            # how far hue can drift
-        sat_range=(0.2, 1.0),      # allowed saturation range
-        val_range=(0.1, 1.0),      # allowed value/brightness range
+        # known_rgb=(0.2, 0.5, 0.6),  # normalized [0..1]
+        # hue_tol_deg=10,            # how far hue can drift
+        # sat_range=(0.2, 1.0),      # allowed saturation range
+        # val_range=(0.1, 1.0),      # allowed value/brightness range
+        known_rgb=(1.0, 0.419, 0.),  # normalized [0..1]
+        hue_tol_deg=15,            # how far hue can drift
+        sat_range=(0.5, 1.0),      # allowed saturation range
+        val_range=(0.5, 1.0),      # allowed value/brightness range
     ):
         # ----- blob detector init (unchanged, keep if you still want blob()) -----
         params = cv2.SimpleBlobDetector_Params()
@@ -49,51 +53,53 @@ class Masker:
             img_u8 = img.astype(np.uint8)
         return img_u8
 
-    def color_mask(self, img_rgb: np.ndarray):
+    def color_mask(self, img_rgb: np.ndarray, use_clahe: bool = True, keep_largest: bool = True):
         """
-        Returns a binary mask (H,W) uint8 where 255 = pixel whose color
-        matches the known object color (robust-ish to lighting).
+        Returns a clean uint8 mask (H,W) with 255 on the blue ball.
+        Steps: RGB->HSV, (optional) CLAHE on V, hue gate around known color,
+            S/V range check, open+close morphology, keep largest CC.
         """
-
-        # 1. ensure we have uint8 and convert RGB->BGR for OpenCV
+        # 1) ensure uint8 and convert RGB->BGR for OpenCV
         img_u8 = self._to_uint8_rgb(img_rgb)
         img_bgr = img_u8[..., ::-1]  # RGB -> BGR
-
-        # 2. convert frame to HSV
-        hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV).astype(np.float32)
-
-        H = hsv[..., 0]  # [0,179]
-        S = hsv[..., 1]  # [0,255]
-        V = hsv[..., 2]  # [0,255]
-
-        # 3. compute hue distance with wrap-around
-        # hue is circular (0 ~ 180). We'll do shortest distance on a circle.
+        # 2) HSV (+ optional CLAHE on V to stabilize exposure)
+        hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+        if use_clahe:
+            H, S, V = cv2.split(hsv)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            V = clahe.apply(V)
+            hsv = cv2.merge([H, S, V])
+        # float arrays for math
+        hsv_f = hsv.astype(np.float32)
+        H = hsv_f[..., 0]  # [0,179]
+        S = hsv_f[..., 1]  # [0,255]
+        V = hsv_f[..., 2]  # [0,255]
+        # 3) shortest circular hue distance (OpenCV hue units: 0..179, i.e., 2°/unit)
         dh = np.abs(H - self.target_h)
         dh = np.minimum(dh, 180.0 - dh)
-
-        # 4. threshold by hue closeness, saturation range, value range
-        hue_ok = dh <= self.hue_tol_deg * (180.0/360.0) * 360.0/2.0
-        # Wait, that looks scary. Let's explain & simplify:
-
-        # cv2 hue range is 0..179 which corresponds to 0..360 degrees
-        # So 1 "hue unit" in cv2 HSV = 2 degrees.
-        # If we want hue_tol_deg in real degrees:
-        # allowed_hue_diff_in_cv2_units = hue_tol_deg / 2
-        allowed_hue_diff_cv2 = self.hue_tol_deg / 2.0
+        # hue tolerance in OpenCV units (deg/2)
+        allowed_hue_diff_cv2 = float(self.hue_tol_deg) / 2.0
         hue_ok = dh <= allowed_hue_diff_cv2
-
-        sat_ok = (S >= self.sat_min*255.0) & (S <= self.sat_max*255.0)
-        val_ok = (V >= self.val_min*255.0) & (V <= self.val_max*255.0)
-
+        # 4) S/V gates
+        sat_ok = (S >= self.sat_min * 255.0) & (S <= self.sat_max * 255.0)
+        val_ok = (V >= self.val_min * 255.0) & (V <= self.val_max * 255.0)
         mask_bool = hue_ok & sat_ok & val_ok
-
-        # 5. convert to uint8 [0,255]
-        mask = np.zeros_like(H, dtype=np.uint8)
+        # 5) morphology (ellipse kernel works well on balls)
+        mask = np.zeros(H.shape, dtype=np.uint8)
         mask[mask_bool] = 255
-        kernel = np.ones((5,5), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-
+        k = 5 if max(mask.shape) > 400 else 3
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+        # 6) keep largest connected component (drop small blue clutter)
+        if keep_largest:
+            num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+            if num_labels > 1:
+                # label 0 is background
+                largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+                keep = (labels == largest_label)
+                mask[...] = 0
+                mask[keep] = 255
         return mask
 
     def blob(self, img: np.ndarray):
